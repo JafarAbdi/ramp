@@ -1,0 +1,40 @@
+[robot]
+base_link = "world"
+description = "ur.urdf.xacro"
+disable_collisions = "ur.srdf.xacro"
+
+[group.arm]
+joints = [
+  "shoulder_pan_joint",
+  "shoulder_lift_joint",
+  "elbow_joint",
+  "wrist_1_joint",
+  "wrist_2_joint",
+  "wrist_3_joint",
+]
+tcp_link_name = "tcp_link"
+gripper = { actuated_joint = "finger_joint", open = 0.0, close = 0.695 }
+
+[named_states]
+home = [
+  # Group arm
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  0.0,
+  # Group gripper
+  0.0,
+]
+
+# URDF doesn't provide acceleration limits
+[acceleration_limits]
+shoulder_pan_joint = 1.0
+shoulder_lift_joint = 1.0
+elbow_joint = 1.0
+wrist_1_joint = 1.0
+wrist_2_joint = 1.0
+wrist_3_joint = 1.0
+# I couldn't find the value for finger_joint in the official specifications
+finger_joint = 1.0

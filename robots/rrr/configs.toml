@@ -1,0 +1,16 @@
+[robot]
+base_link = "base_link"
+description = "rrr.urdf.xacro"
+disable_collisions = "rrr.srdf.xacro"
+
+[group.arm]
+joints = ["joint1", "joint2", "joint3"]
+tcp_link_name = "end_effector"
+
+[named_states]
+home = [0.0, 0.0, 0.0]
+
+[acceleration_limits]
+joint1 = 1.0
+joint2 = 1.0
+joint3 = 1.0

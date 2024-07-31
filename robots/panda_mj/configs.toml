@@ -1,0 +1,26 @@
+[robot]
+base_link = "link0"
+description = "robot-descriptions::panda_mj_description"
+disable_collisions = "../panda/panda.srdf.xacro"
+mappings = { prefix = "", finger_prefix = "_" }
+
+[group.arm]
+joints = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7"]
+tcp_link_name = "hand"
+gripper = { actuated_joint = "finger_joint1", open = 0.035, close = 0.0 }
+
+[named_states]
+home = [0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785, 0.0]
+
+# URDF doesn't provide acceleration limits
+# https://frankaemika.github.io/docs/control_parameters.html#limits-for-panda
+# We are using the values from MoveIt configs for now
+[acceleration_limits]
+joint1 = 3.75
+joint2 = 1.875
+joint3 = 2.5
+joint4 = 3.125
+joint5 = 3.75
+joint6 = 5.0
+joint7 = 5.0
+finger_joint1 = 1.0

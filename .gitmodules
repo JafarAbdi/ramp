@@ -1,0 +1,6 @@
+[submodule "external/trac_ik"]
+	path = external/trac_ik
+	url = https://github.com/JafarAbdi/trac_ik.git
+[submodule "external/mujoco_simulator"]
+	path = external/mujoco_simulator
+	url = https://github.com/JafarAbdi/mujoco_simulator.git

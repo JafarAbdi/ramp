@@ -1,0 +1,4 @@
+<?xml version="1.0"?>
+<robot name="acrobot">
+  <disable_collisions link1="upper_link" link2="lower_link" reason="Adjacent"/>
+</robot>

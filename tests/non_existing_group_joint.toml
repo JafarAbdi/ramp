@@ -1,0 +1,30 @@
+[robot]
+base_link = "fr3_link0"
+description = "../robots/fr3_robotiq/fr3.urdf.xacro"
+
+[group.arm]
+joints = [
+  "fr3_join1",  # Non-existing joint
+  "fr3_joint2",
+  "fr3_joint3",
+  "fr3_joint4",
+  "fr3_joint5",
+  "fr3_joint6",
+  "fr3_joint7",
+]
+tcp_link_name = "tcp_link"
+gripper = { name = "gripper", actuated_joint = "robotiq_85_left_inner_knuckle_joint", open = 0.0, close = 0.695 }
+
+[named_states]
+home = [
+  # Group arm
+  0.0,
+  -0.785,
+  0.0,
+  -2.356,
+  0.0,
+  1.571,
+  0.785,
+  # Group gripper
+  1.0,
+]

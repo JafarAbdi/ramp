@@ -1,0 +1,13 @@
+[robot]
+base_link = "universe"
+description = "../../external/mujoco_simulator/mujoco_simulator_py/examples/acrobot.xml"
+disable_collisions = "acrobot.srdf.xacro"
+
+[group.arm]
+joints = ["elbow"]
+
+[named_states]
+home = [0.0]
+
+[acceleration_limits]
+elbow = 1.0

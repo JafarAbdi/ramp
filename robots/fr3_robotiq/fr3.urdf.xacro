@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="panda">
+  <xacro:include filename="$(find franka_description)/robots/common/franka_robot.xacro"/>
+  <xacro:franka_robot arm_id="fr3" joint_limits="${xacro.load_yaml('$(find franka_description)/robots/fr3/joint_limits.yaml')}" inertials="${xacro.load_yaml('$(find franka_description)/robots/fr3/inertials.yaml')}" kinematics="${xacro.load_yaml('$(find franka_description)/robots/fr3/kinematics.yaml')}" dynamics="${xacro.load_yaml('$(find franka_description)/robots/fr3/dynamics.yaml')}" hand="false">
+  </xacro:franka_robot>
+  <link name="tcp_link"/>
+  <joint name="tcp_joint" type="fixed">
+    <origin xyz="0 0 0.244" rpy="0 0 ${pi/2}"/>
+    <parent link="fr3_link8"/>
+    <child link="tcp_link"/>
+  </joint>
+  <!-- Robotiq 2f 85 gripper -->
+  <xacro:include filename="$(find robotiq_description)/urdf/ur_to_robotiq_adapter.urdf.xacro"/>
+  <xacro:include filename="$(find robotiq_description)/urdf/robotiq_2f_85_macro.urdf.xacro"/>
+  <xacro:ur_to_robotiq prefix="" parent="fr3_link8" child="gripper_mount_link" rotation="0"/>
+  <xacro:robotiq_gripper name="robotiq_gripper" prefix="" parent="gripper_mount_link" include_ros2_control="false">
+    <origin xyz="0 0 0" rpy="0 0 -${pi / 2}"/>
+  </xacro:robotiq_gripper>
+</robot>

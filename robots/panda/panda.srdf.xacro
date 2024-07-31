@@ -1,0 +1,54 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="panda">
+  <xacro:arg name="prefix" default=""/>
+  <xacro:arg name="finger_prefix" default=""/>
+  <xacro:macro name="panda_arm">
+    <disable_collisions link1="$(arg prefix)link0" link2="$(arg prefix)link1" reason="Adjacent"/>
+    <disable_collisions link1="$(arg prefix)link0" link2="$(arg prefix)link2" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link0" link2="$(arg prefix)link3" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link0" link2="$(arg prefix)link4" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link1" link2="$(arg prefix)link2" reason="Adjacent"/>
+    <disable_collisions link1="$(arg prefix)link1" link2="$(arg prefix)link3" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link1" link2="$(arg prefix)link4" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link2" link2="$(arg prefix)link3" reason="Adjacent"/>
+    <disable_collisions link1="$(arg prefix)link2" link2="$(arg prefix)link4" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link2" link2="$(arg prefix)link6" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link3" link2="$(arg prefix)link4" reason="Adjacent"/>
+    <disable_collisions link1="$(arg prefix)link3" link2="$(arg prefix)link5" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link3" link2="$(arg prefix)link6" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link3" link2="$(arg prefix)link7" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link4" link2="$(arg prefix)link5" reason="Adjacent"/>
+    <disable_collisions link1="$(arg prefix)link4" link2="$(arg prefix)link6" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link4" link2="$(arg prefix)link7" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link4" link2="$(arg prefix)link8" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link5" link2="$(arg prefix)link6" reason="Adjacent"/>
+    <disable_collisions link1="$(arg prefix)link6" link2="$(arg prefix)link7" reason="Adjacent"/>
+    <disable_collisions link1="$(arg prefix)link6" link2="$(arg prefix)link8" reason="Default"/>
+    <disable_collisions link1="$(arg prefix)link7" link2="$(arg prefix)link8" reason="Adjacent"/>
+  </xacro:macro>
+  <xacro:macro name="hand">
+    <disable_collisions link1="$(arg prefix)hand" link2="$(arg prefix)left$(arg finger_prefix)finger" reason="Adjacent"/>
+    <disable_collisions link1="$(arg prefix)hand" link2="$(arg prefix)right$(arg finger_prefix)finger" reason="Adjacent"/>
+    <disable_collisions link1="$(arg prefix)left$(arg finger_prefix)finger" link2="$(arg prefix)right$(arg finger_prefix)finger" reason="Default"/>
+  </xacro:macro>
+  <xacro:macro name="panda_arm_hand">
+    <disable_collisions link1="$(arg prefix)hand" link2="$(arg prefix)link3" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)hand" link2="$(arg prefix)link4" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)hand" link2="$(arg prefix)link6" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)hand" link2="$(arg prefix)link7" reason="Adjacent"/>
+    <disable_collisions link1="$(arg prefix)hand" link2="$(arg prefix)link8" reason="Adjacent"/>
+    <disable_collisions link1="$(arg prefix)left$(arg finger_prefix)finger" link2="$(arg prefix)link3" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)left$(arg finger_prefix)finger" link2="$(arg prefix)link4" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)left$(arg finger_prefix)finger" link2="$(arg prefix)link6" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)left$(arg finger_prefix)finger" link2="$(arg prefix)link7" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)left$(arg finger_prefix)finger" link2="$(arg prefix)link8" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link3" link2="$(arg prefix)right$(arg finger_prefix)finger" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link4" link2="$(arg prefix)right$(arg finger_prefix)finger" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link6" link2="$(arg prefix)right$(arg finger_prefix)finger" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link7" link2="$(arg prefix)right$(arg finger_prefix)finger" reason="Never"/>
+    <disable_collisions link1="$(arg prefix)link8" link2="$(arg prefix)right$(arg finger_prefix)finger" reason="Never"/>
+  </xacro:macro>
+  <xacro:panda_arm/>
+  <xacro:hand/>
+  <xacro:panda_arm_hand/>
+</robot>

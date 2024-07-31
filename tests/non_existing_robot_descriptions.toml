@@ -1,0 +1,4 @@
+[robot]
+base_link = "non_existing_robot_base_link"
+description = "robot-descriptions::non_existing_robot"
+disable_collisions = "non_existing_robot_srdf"

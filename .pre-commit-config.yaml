@@ -1,0 +1,40 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.4.0
+    hooks:
+      - id: check-yaml
+      - id: sort-simple-yaml
+      - id: end-of-file-fixer
+      - id: trailing-whitespace
+  - repo: https://github.com/charliermarsh/ruff-pre-commit
+    rev: v0.5.5
+    hooks:
+      - id: ruff
+        args: ["--output-format=full", "--fix", "--config", "pyproject.toml"]
+      - id: ruff-format
+  - repo: https://github.com/lsst-ts/pre-commit-xmllint
+    rev: v1.0.0
+    hooks:
+      - id: format-xmllint
+  - repo: https://github.com/crate-ci/typos
+    rev: v1.23.6
+    hooks:
+      - id: typos
+  - repo: local
+    hooks:
+      - id: prettier
+        name: prettier
+        entry: prettier --write --list-different --ignore-unknown
+        language: system
+        types: [text]
+        files: \.(md|yml|yaml)$
+      - id: taplo
+        name: taplo
+        entry: taplo format
+        language: system
+        types: [toml]
+  # - repo: https://github.com/fastai/nbdev
+  #   rev: 2.2.10
+  #   hooks:
+  #   - id: nbdev_clean
+  #   - id: nbdev_export

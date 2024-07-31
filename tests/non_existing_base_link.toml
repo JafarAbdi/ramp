@@ -1,0 +1,40 @@
+[robot]
+base_link = "non_existing_base_link"
+description = "../robots/fr3_robotiq/fr3.urdf.xacro"
+
+[group.arm]
+joints = [
+  "panda_joint1",
+  "panda_joint2",
+  "panda_joint3",
+  "panda_joint4",
+  "panda_joint5",
+  "panda_joint6",
+  "panda_joint7",
+]
+tcp_link_name = "tcp_link"
+gripper = { actuated_joint = "finger_joint", open = 0.0, close = 0.695 }
+
+[named_states]
+home = [
+  # Group arm
+  0.0,
+  -0.785,
+  0.0,
+  -2.356,
+  0.0,
+  1.571,
+  0.785,
+  # Group gripper
+  1.0,
+]
+
+[acceleration_limits]
+panda_joint1 = 3.75
+panda_joint2 = 1.875
+panda_joint3 = 2.5
+panda_joint4 = 3.125
+panda_joint5 = 3.75
+panda_joint6 = 5.0
+panda_joint7 = 5.0
+finger_joint = 1.0

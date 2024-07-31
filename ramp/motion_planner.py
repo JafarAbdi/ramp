@@ -1,0 +1,405 @@
+"""Motion planning module using OMPL."""
+
+import logging
+import os
+import platform
+import re
+from collections.abc import Callable
+
+import numpy as np
+import ompl
+import time_optimal_trajectory_generation_py as totg
+from ompl import base as ob
+from ompl import geometric as og
+
+from ramp.constants import (
+    GROUP_NAME,
+    PINOCCHIO_FREEFLYER_JOINT,
+    PINOCCHIO_PLANAR_JOINT,
+    PINOCCHIO_PRISMATIC_JOINT,
+    PINOCCHIO_REVOLUTE_JOINT,
+    PINOCCHIO_REVOLUTE_UNALIGNED_JOINT,
+    PINOCCHIO_SPHERICAL_JOINT,
+    PINOCCHIO_TRANSLATION_JOINT,
+    PINOCCHIO_UNBOUNDED_JOINT,
+)
+from ramp.robot import Robot
+
+LOGGER = logging.getLogger(__name__)
+LOGGER.setLevel(level=os.getenv("LOG_LEVEL", "INFO").upper())
+
+
+def get_ompl_log_level(level: str) -> ompl.util.LogLevel:
+    """Get OMPL log level.
+
+    Args:
+        level: Log level
+
+    Returns:
+        OMPL log level
+    """
+    level = level.upper()
+    # Why using ompl.util.LOG_DEBUG doesn't work on MacOS?
+    logger_module = ompl.base if platform.system() == "Darwin" else ompl.util
+    if level == "DEBUG":
+        return logger_module.LOG_DEBUG
+    if level == "INFO":
+        return logger_module.LOG_INFO
+    if level == "WARN":
+        return logger_module.LOG_WARN
+    if level == "ERROR":
+        return logger_module.LOG_ERROR
+    msg = f"Unknown log level: {level}"
+    raise ValueError(msg)
+
+
+ompl.util.setLogLevel(get_ompl_log_level(os.getenv("LOG_LEVEL", "ERROR")))
+
+
+def list2vec(input_list):
+    """Convert a list to an OMPL vector."""
+    ret = ompl.util.vectorDouble()
+    for e in input_list:
+        ret.append(e)
+    return ret
+
+
+def get_ompl_planners() -> list[str]:
+    """Get OMPL planners.
+
+    Returns:
+        List of OMPL planners.
+    """
+    from inspect import isclass
+
+    module = ompl.geometric
+    planners = []
+    for obj in dir(module):
+        planner_name = f"{module.__name__}.{obj}"
+        planner = eval(planner_name)  # noqa: S307, PGH001
+        if isclass(planner) and issubclass(planner, ompl.base.Planner):
+            planners.append(
+                planner_name.split("ompl.geometric.")[1],
+            )  # Name is ompl.geometric.<planner>
+    return planners
+
+
+# MoveIt has ProjectionEvaluatorLinkPose/ProjectionEvaluatorJointValue
+class ProjectionEvaluatorLinkPose(ob.ProjectionEvaluator):
+    """OMPL projection evaluator."""
+
+    def __init__(self, space, pose_fn: Callable[[ob.State], np.ndarray]) -> None:
+        """Initialize the projection evaluator.
+
+        Args:
+            space: The state space
+            pose_fn: The pose function to project a state to a link's position
+        """
+        super().__init__(space)
+        self._pose_fn = pose_fn
+        self.defaultCellSizes()
+
+    def getDimension(self):  # noqa: N802
+        """Get the dimension of the projection."""
+        return 3
+
+    def defaultCellSizes(self):  # noqa: N802
+        """Set the default cell sizes."""
+        # TODO: Should use ompl.tools.PROJECTION_DIMENSION_SPLITS
+        # space.getBounds() -> bounds_.getDifference() see ompl's repo
+        self.cellSizes_ = list2vec([0.1, 0.1, 0.1])
+
+    def project(self, state, projection):
+        """Project the input state.
+
+        Args:
+            state: The input state
+            projection: The projected state
+        """
+        pose = self._pose_fn(state)
+        projection[0] = pose[0, 3]
+        projection[1] = pose[1, 3]
+        projection[2] = pose[2, 3]
+
+
+class MotionPlanner:
+    """A wrapper for OMPL planners."""
+
+    def __init__(self, robot: Robot, planner=None) -> None:
+        """Initialize the motion planner.
+
+        Args:
+            robot: The robot to plan for.
+            planner: The planner to use.
+        """
+        self._robot = robot
+        self._space = ob.CompoundStateSpace()
+        self.state_spaces = []
+        for idx in robot.actuated_joint_indices:
+            joint = robot.model.joints[int(idx)]
+            joint_type = joint.shortname()
+            if (
+                re.match(PINOCCHIO_REVOLUTE_JOINT, joint_type)
+                or (re.match(PINOCCHIO_PRISMATIC_JOINT, joint_type))
+                or joint_type == PINOCCHIO_REVOLUTE_UNALIGNED_JOINT
+            ):
+                bounds = ob.RealVectorBounds(1)
+                space = ob.RealVectorStateSpace(1)
+                bounds.setLow(0, robot.model.lowerPositionLimit[joint.idx_q])
+                bounds.setHigh(0, robot.model.upperPositionLimit[joint.idx_q])
+                space.setBounds(bounds)
+                self._space.addSubspace(space, 1.0)
+                self.state_spaces.append(ob.STATE_SPACE_REAL_VECTOR)
+            elif re.match(PINOCCHIO_UNBOUNDED_JOINT, joint_type):
+                self._space.addSubspace(
+                    ob.SO2StateSpace(),
+                    1.0,
+                )
+                self.state_spaces.append(ob.STATE_SPACE_SO2)
+            elif joint_type == PINOCCHIO_PLANAR_JOINT:
+                bounds = ob.RealVectorBounds(2)
+                bounds.setLow(0, -10.0)  # robot.model.lowerPositionLimit[joint.idx_q])
+                bounds.setHigh(0, 10.0)  # robot.model.upperPositionLimit[joint.idx_q])
+                bounds.setLow(
+                    1,
+                    -10.0,
+                )  # robot.model.lowerPositionLimit[joint.idx_q + 1])
+                bounds.setHigh(
+                    1,
+                    10.0,
+                )  # robot.model.upperPositionLimit[joint.idx_q + 1])
+                space = ob.SE2StateSpace()
+                space.setBounds(bounds)
+                self._space.addSubspace(space, 1.0)
+                self.state_spaces.append(ob.STATE_SPACE_SE2)
+            elif joint_type == PINOCCHIO_SPHERICAL_JOINT:
+                self._space.addSubspace(ob.SO3StateSpace(), 1.0)
+                self.state_spaces.append(ob.STATE_SPACE_SO3)
+            elif joint_type == PINOCCHIO_TRANSLATION_JOINT:
+                self._space.addSubspace(ob.RealVectorStateSpace(3), 1.0)
+                self.state_spaces.append(ob.STATE_SPACE_REAL_VECTOR)
+            elif joint_type == PINOCCHIO_FREEFLYER_JOINT:
+                # TODO: Parameterize -10/10
+                bounds = ob.RealVectorBounds(3)
+                bounds.setLow(0, -10.0)
+                bounds.setHigh(0, 10.0)
+                bounds.setLow(1, -10.0)
+                bounds.setHigh(1, 10.0)
+                bounds.setLow(2, -10.0)
+                bounds.setHigh(2, 10.0)
+                space = ob.SE3StateSpace()
+                space.setBounds(bounds)
+                self._space.addSubspace(space, 1.0)
+                self.state_spaces.append(ob.STATE_SPACE_SE3)
+            else:
+                msg = f"Unknown joint type: '{joint_type}' for joint '{robot.model.names[int(idx)]}'"
+                raise ValueError(msg)
+
+        def pose_fn(state):
+            return robot.get_frame_pose(
+                self.from_ompl_state(state),
+                robot.groups[GROUP_NAME].tcp_link_name,
+            ).np
+
+        self._space.registerDefaultProjection(
+            ProjectionEvaluatorLinkPose(self._space, pose_fn),
+        )
+        self._setup = og.SimpleSetup(self._space)
+        LOGGER.debug(self._setup.getStateSpace().settings())
+        self._setup.setStateValidityChecker(
+            ob.StateValidityCheckerFn(self.is_state_valid),
+        )
+        if planner is not None:
+            self._setup.setPlanner(self._get_planner(planner))
+
+    def _get_planner(self, planner):
+        try:
+            return eval(  # noqa: S307, PGH001
+                f"og.{planner}(self._setup.getSpaceInformation())",
+            )
+        except AttributeError:
+            LOGGER.exception(
+                f"Planner '{planner}' not found - Available planners: {get_ompl_planners()}",
+            )
+            raise
+
+    def as_ompl_state(self, joint_positions):
+        """Convert joint positions to ompl state."""
+        assert len(joint_positions) == len(self._robot.actuated_joint_position_indices)
+        state = ob.State(self._space)
+        for i, joint_position in enumerate(joint_positions):
+            state[i] = joint_position
+        return state
+
+    def from_ompl_state(self, state: ob.State):
+        """Convert ompl state to joint positions."""
+        joint_positions = []
+        for idx, (substate, space) in enumerate(
+            zip(
+                [state[i] for i in range(len(self.state_spaces))],
+                self.state_spaces,
+                strict=True,
+            ),
+        ):
+            if space == ob.STATE_SPACE_REAL_VECTOR:
+                joint_positions.extend(
+                    [
+                        substate[i]
+                        for i in range(self._space.getSubspace(idx).getDimension())
+                    ],
+                )
+            elif space == ob.STATE_SPACE_SO3:
+                joint_positions.extend([substate.x, substate.y, substate.z, substate.w])
+            elif space == ob.STATE_SPACE_SE2:
+                joint_positions.extend(
+                    [substate.getX(), substate.getY(), substate.getYaw()],
+                )
+            elif space == ob.STATE_SPACE_SO2:
+                joint_positions.append(substate.value)
+            elif space == ob.STATE_SPACE_SE3:
+                rotation = substate.rotation()
+                joint_positions.extend(
+                    [
+                        substate.getX(),
+                        substate.getY(),
+                        substate.getZ(),
+                        rotation.x,
+                        rotation.y,
+                        rotation.z,
+                        rotation.w,
+                    ],
+                )
+            else:
+                msg = f"Unknown state space: {space}"
+                raise ValueError(msg)
+        return joint_positions
+
+    # TODO: Add termination conditions doc/markdown/plannerTerminationConditions.md
+    def plan(
+        self,
+        start_joint_positions: list[float],
+        goal_joint_positions: list[float],
+        timeout: float = 1.0,
+    ) -> list[list[float]] | None:
+        """Plan a trajectory from start to goal.
+
+        Args:
+            start_joint_positions: The start joint positions.
+            goal_joint_positions: The goal joint positions.
+            timeout: Timeout for planner
+
+        Returns:
+            The trajectory as a list of joint positions or None if no solution was found.
+        """
+        assert len(start_joint_positions) == len(
+            self._robot.actuated_joint_position_indices,
+        )
+        assert len(goal_joint_positions) == len(
+            self._robot.actuated_joint_position_indices,
+        )
+        self._setup.clear()
+        start = self.as_ompl_state(start_joint_positions)
+        if not self.is_state_valid(start()):
+            LOGGER.error("Start state is invalid - in collision or out of bounds")
+            return None
+        goal = self.as_ompl_state(goal_joint_positions)
+        if not self.is_state_valid(goal()):
+            LOGGER.error("Goal state is invalid - in collision or out of bounds")
+            return None
+        self._setup.setStartAndGoalStates(start, goal)
+        solve_result = self._setup.solve(timeout)
+        if not solve_result:
+            LOGGER.info("Did not find solution!")
+            return None
+        path = self._setup.getSolutionPath()
+        if not path.check():
+            LOGGER.warning("Path fails check!")
+
+        if (
+            ob.PlannerStatus.getStatus(solve_result)
+            == ob.PlannerStatus.APPROXIMATE_SOLUTION
+        ):
+            LOGGER.warning("Found approximate solution!")
+
+        LOGGER.debug("Simplifying solution..")
+        LOGGER.debug(
+            f"Path length before simplification: {path.length()} with {len(path.getStates())} states",
+        )
+        self._setup.simplifySolution()
+        simplified_path = self._setup.getSolutionPath()
+        LOGGER.debug(
+            f"Path length after simplifySolution: {simplified_path.length()} with {len(simplified_path.getStates())} states",
+        )
+        # self._setup.getPathSimplifier() Fails with
+        # TypeError: No Python class registered for C++ class std::shared_ptr<ompl::geometric::PathSimplifier>
+        path_simplifier = og.PathSimplifier(self._setup.getSpaceInformation())
+        path_simplifier.ropeShortcutPath(simplified_path)
+        LOGGER.debug(
+            f"Simplified path length after ropeShortcutPath: {simplified_path.length()} with {len(simplified_path.getStates())} states",
+        )
+        path_simplifier.smoothBSpline(simplified_path)
+        LOGGER.debug(
+            f"Simplified path length after smoothBSpline: {simplified_path.length()} with {len(simplified_path.getStates())} states",
+        )
+
+        if not simplified_path.check():
+            LOGGER.warning("Simplified path fails check!")
+
+        LOGGER.debug("Interpolating simplified path...")
+        simplified_path.interpolate()
+
+        if not simplified_path.check():
+            LOGGER.warning("Interpolated simplified path fails check!")
+
+        solution = []
+        for state in simplified_path.getStates():
+            solution.append(self.from_ompl_state(state))
+        LOGGER.info(f"Found solution with {len(solution)} waypoints")
+        return solution
+
+    def is_state_valid(self, state):
+        """Check if the state is valid, i.e. not in collision or out of bounds.
+
+        Args:
+            state: The state to check.
+
+        Returns:
+            True if the state is valid, False otherwise.
+        """
+        return self._setup.getSpaceInformation().satisfiesBounds(
+            state,
+        ) and not self._robot.check_collision(self.from_ompl_state(state))
+
+    def parameterize(
+        self,
+        waypoints,
+        resample_dt=0.1,
+    ) -> list[tuple[list[float], list[float], float]] | None:
+        """Parameterize the trajectory using Time Optimal Trajectory Generation http://www.golems.org/node/1570.
+
+        Args:
+            waypoints: The waypoints to parameterize.
+            resample_dt: The resampling time step.
+
+        Returns:
+            The parameterized trajectory as a list of (joint positions, joint velocities, time).
+        """
+        # The intermediate waypoints of the input path need to be blended so that the entire path is differentiable.
+        # This constant defines the maximum deviation allowed at those intermediate waypoints, in radians for revolute joints,
+        # or meters for prismatic joints.
+        max_deviation = 0.1
+        trajectory = totg.Trajectory(
+            totg.Path(np.asarray(waypoints), max_deviation),
+            self._robot.velocity_limits,
+            self._robot.acceleration_limits,
+        )
+        if not trajectory.isValid():
+            LOGGER.error("Failed to parameterize trajectory")
+            return None
+        duration = trajectory.getDuration()
+        parameterized_trajectory = []
+        for t in np.append(np.arange(0.0, duration, resample_dt), duration):
+            parameterized_trajectory.append(
+                (trajectory.getPosition(t), trajectory.getVelocity(t), t),
+            )
+        return parameterized_trajectory

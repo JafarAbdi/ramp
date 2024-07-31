@@ -1,0 +1,40 @@
+<?xml version="1.0"?>
+<mujoco model="rrr_robot">
+  <compiler angle="radian" inertiafromgeom="true"/>
+  <default>
+    <default class="joint">
+      <joint armature="0.1" damping="1" range="-3.14 3.14"/>
+      <general biastype="affine" ctrlrange="-6.28 6.28" dyntype="none" forcerange="-87 87"/>
+    </default>
+  </default>
+  <worldbody>
+    <!-- Base -->
+    <body gravcomp="1" name="base_link" pos="0 0 0">
+      <geom type="cylinder" size="0.1 0.025" rgba="0 0 0.8 1"/>
+      <!-- Link 1 -->
+      <body gravcomp="1" name="link1" pos="0 0 0.025">
+        <joint name="joint1" class="joint" axis="0 0 1"/>
+        <geom type="box" size="0.05 0.05 0.25" pos="0 0 0.25" rgba="0.8 0 0 1"/>
+        <!-- Link 2 -->
+        <body gravcomp="1" name="link2" pos="0 0 0.5">
+          <joint name="joint2" class="joint" axis="0 1 0"/>
+          <geom type="box" size="0.05 0.05 0.2" pos="0 0 0.2" rgba="0 0.8 0 1"/>
+          <!-- Link 3 -->
+          <body gravcomp="1" name="link3" pos="0 0 0.4">
+            <joint name="joint3" class="joint" axis="0 1 0"/>
+            <geom type="box" size="0.05 0.05 0.15" pos="0 0 0.15" rgba="0.8 0.8 0 1"/>
+            <!-- End Effector -->
+            <body gravcomp="1" name="end_effector" pos="0 0 0.3">
+              <geom type="sphere" size="0.05" rgba="1 1 1 1"/>
+            </body>
+          </body>
+        </body>
+      </body>
+    </body>
+  </worldbody>
+  <actuator>
+    <position class="joint" name="joint1" kp="260" kv="86" joint="joint1"/>
+    <position class="joint" name="joint2" kp="260" kv="86" joint="joint2"/>
+    <position class="joint" name="joint3" kp="260" kv="86" joint="joint3"/>
+  </actuator>
+</mujoco>

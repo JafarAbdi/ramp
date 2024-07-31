@@ -1,0 +1,18 @@
+[robot]
+base_link = "base_link"
+description = "rrr.urdf.xacro"
+disable_collisions = "rrr.srdf.xacro"
+mappings = { mobile_base_type = "planar" }
+
+[group.arm]
+joints = ["planar_joint", "joint1", "joint2", "joint3"]
+tcp_link_name = "end_effector"
+
+[named_states]
+home = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] # x, y, theta, joint1, joint2, joint3
+
+[acceleration_limits]
+joint1 = 1.0
+joint2 = 1.0
+joint3 = 1.0
+planar_joint = 1.0

@@ -1,0 +1,51 @@
+[robot]
+base_link = "fr3_link0"
+description = "fr3.urdf.xacro"
+disable_collisions = "fr3.srdf.xacro"
+
+# base_link & tcp_link_name for Multi-arms case???
+# mobile base case??
+# Multi-groups + multi end-effectors case??
+# Each group has only one eef
+# Is Gripper mandatory?
+
+[group.arm]
+joints = [
+  "fr3_joint1",
+  "fr3_joint2",
+  "fr3_joint3",
+  "fr3_joint4",
+  "fr3_joint5",
+  "fr3_joint6",
+  "fr3_joint7",
+]
+tcp_link_name = "tcp_link"
+gripper = { actuated_joint = "robotiq_85_left_inner_knuckle_joint", open = 0.0, close = 0.8 }
+
+[named_states]
+home = [
+  # Group arm
+  0.0,
+  -0.785,
+  0.0,
+  -2.356,
+  0.0,
+  1.571,
+  0.785,
+  # Group gripper
+  0.0,
+]
+
+# URDF doesn't provide acceleration limits
+# https://frankaemika.github.io/docs/control_parameters.html#limits-for-panda
+# We are using the values from MoveIt configs for now
+[acceleration_limits]
+fr3_joint1 = 3.75
+fr3_joint2 = 1.875
+fr3_joint3 = 2.5
+fr3_joint4 = 3.125
+fr3_joint5 = 3.75
+fr3_joint6 = 5.0
+fr3_joint7 = 5.0
+# I couldn't find the value for finger_joint in the official specifications
+robotiq_85_left_inner_knuckle_joint = 1.0
