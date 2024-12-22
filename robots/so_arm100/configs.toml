@@ -1,0 +1,20 @@
+[robot]
+base_link = "Base"
+description = "robot-descriptions::so_arm100_mj_description"
+disable_collisions = "so_arm100.srdf.xacro"
+
+[group.arm]
+joints = ["Rotation", "Pitch", "Elbow", "Wrist_Pitch", "Wrist_Roll"]
+tcp_link_name = "Fixed_Jaw"
+gripper = { actuated_joint = "Jaw", open = 1.5, close = -0.2 }
+
+[named_states]
+home = [0.0, -1.57, 1.57, 1.57, -1.57, 0.0]
+
+[acceleration_limits]
+Rotation = 1.0
+Pitch = 1.0
+Elbow = 1.0
+Wrist_Pitch = 1.0
+Wrist_Roll = 1.0
+Jaw = 1.0
