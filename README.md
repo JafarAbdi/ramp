@@ -66,3 +66,4 @@ SPDLOG_LEVEL=debug pixi run python XXX
 ## Acknowledgements
 
 - Some aspects of the Pinocchio library usage were adapted from [pyroboplan](https://github.com/sea-bass/pyroboplan).
+- A lot of concepts were inspired by [moveit](https://moveit.ros.org/).
