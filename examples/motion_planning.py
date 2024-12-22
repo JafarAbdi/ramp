@@ -18,6 +18,7 @@ robots = [
     ("rrr/configs", [0.0, 2.0, 1.4]),
     ("rrr/floating_configs", [1.0, 0.5, 1.0, 1.0, 0.0, 0.0, 0.0, 0.5, 0.25, 0.1]),
     ("rrr/planar_configs", [1.0, -0.5, 1.57, 0.5, 0.25, 0.1]),
+    ("so_arm100/configs", [1.0, -0.5, 1.57, 0.5, 0.25, 0.1]),
 ]
 
 for robot_path, goal_state in robots:
@@ -26,15 +27,12 @@ for robot_path, goal_state in robots:
     )
     robot = Robot(pathlib.Path(f"robots/{robot_path}.toml"))
     visualize = Visualizer(robot)
-    start_state = robot.named_states["home"]
-    visualize.robot_state(start_state)
 
     robot.add_object(
         "capsule",
         pin.GeometryObject.CreateCapsule(0.1, 0.4),
         pin.SE3(pin.Quaternion(0.707, 0.707, 0.0, 0.0), np.asarray([0.475, 0.0, 0.5])),
     )
-
     start_state = robot.named_states["home"]
     visualize.robot_state(start_state)
 
