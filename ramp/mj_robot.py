@@ -34,7 +34,7 @@ class MjRobot:
         #   <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
         # </worldbody>
         # scene.xml -> Used for mujoco simulator
-        self.model_filename = model_filename.parent / "scene.xml"
+        self.model_filename = model_filename # model_filename.parent / "scene.xml"
         self.model: mujoco.MjModel = mujoco.MjModel.from_xml_path(
             str(self.model_filename),
         )
