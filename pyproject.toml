@@ -27,6 +27,7 @@ include = ["ramp"]
 
 [project.scripts]
 model_info = "ramp.model_info:main"
+compute_disable_collisions = "ramp.compute_disable_collisions:main"
 
 [tool.mypy]
 python_version = '3.10'
