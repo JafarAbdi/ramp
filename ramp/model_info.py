@@ -1,6 +1,7 @@
-import pinocchio
 import pathlib
 import sys
+
+import pinocchio
 
 
 # Why external/mujoco_menagerie/unitree_g1/g1.xml is failing?

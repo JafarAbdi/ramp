@@ -1,13 +1,15 @@
-import pinocchio
 import pathlib
 import sys
 
+import pinocchio
+
 
 class ComputeDisableCollisions:
-
     def __init__(self, model_filename):
         models: tuple[
-            pinocchio.Model, pinocchio.GeometryModel, pinocchio.GeometryModel
+            pinocchio.Model,
+            pinocchio.GeometryModel,
+            pinocchio.GeometryModel,
         ] = pinocchio.shortcuts.buildModelsFromMJCF(
             model_filename,
             verbose=True,
@@ -18,7 +20,6 @@ class ComputeDisableCollisions:
         self.collision_model.addAllCollisionPairs()
 
     def check_collision(self, qpos):
-
         data = self.model.createData()
         collision_data = self.collision_model.createData()
         # print(collision_data.activeCollisionPairs)
@@ -66,7 +67,7 @@ def main():
     # DISABLE "DEFAULT" COLLISIONS
     # Disable all collision checks that occur when the robot is started in its default state
     default_pairs = compute_disable_collisions.check_collision(
-        pinocchio.neutral(compute_disable_collisions.model)
+        pinocchio.neutral(compute_disable_collisions.model),
     )
     srdf = """
 <robot name="disable_collisions">
@@ -76,11 +77,11 @@ def main():
     disable_collisions = []
     for first, second in default_pairs.keys():
         disable_collisions.append(
-            f'<disable_collisions link1="{first}" link2="{second}" reason="Default"/>'
+            f'<disable_collisions link1="{first}" link2="{second}" reason="Default"/>',
         )
     print("\n".join(disable_collisions))
     print(
-        f"Number of collision pairs before removal: {len(compute_disable_collisions.collision_model.collisionPairs)}"
+        f"Number of collision pairs before removal: {len(compute_disable_collisions.collision_model.collisionPairs)}",
     )
     pinocchio.removeCollisionPairsFromXML(
         compute_disable_collisions.model,
@@ -93,7 +94,7 @@ def main():
     # for pair in default_pairs.values():
     #     compute_disable_collisions.collision_model.removeCollisionPair(pair)
     print(
-        f"Number of collision pairs after removal: {len(compute_disable_collisions.collision_model.collisionPairs)}"
+        f"Number of collision pairs after removal: {len(compute_disable_collisions.collision_model.collisionPairs)}",
     )
 
     # DISABLE ALL "ADJACENT" LINK COLLISIONS

@@ -8,7 +8,6 @@ from collections.abc import Callable
 
 import numpy as np
 import ompl
-
 import time_optimal_trajectory_generation_py as totg
 from ompl import base as ob
 from ompl import geometric as og
@@ -23,7 +22,7 @@ from ramp.constants import (
     PINOCCHIO_TRANSLATION_JOINT,
     PINOCCHIO_UNBOUNDED_JOINT,
 )
-from ramp.robot import Robot, RobotState, GroupState, check_collision
+from ramp.robot import GroupState, Robot, RobotState, check_collision
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(level=os.getenv("LOG_LEVEL", "INFO").upper())
@@ -147,10 +146,12 @@ class MotionPlanner:
                 bounds = ob.RealVectorBounds(1)
                 space = ob.RealVectorStateSpace(1)
                 bounds.setLow(
-                    0, robot.robot_model.model.lowerPositionLimit[joint.idx_q]
+                    0,
+                    robot.robot_model.model.lowerPositionLimit[joint.idx_q],
                 )
                 bounds.setHigh(
-                    0, robot.robot_model.model.upperPositionLimit[joint.idx_q]
+                    0,
+                    robot.robot_model.model.upperPositionLimit[joint.idx_q],
                 )
                 space.setBounds(bounds)
                 self._space.addSubspace(space, 1.0)
@@ -235,7 +236,7 @@ class MotionPlanner:
         for i, joint_position in enumerate(
             robot_state.qpos[
                 self._robot.robot_model[self._group_name].joint_position_indices
-            ]
+            ],
         ):
             state[i] = joint_position
         return state
@@ -289,7 +290,7 @@ class MotionPlanner:
         start_state: RobotState,
         group_goal_qpos: np.ndarray,
         timeout: float = 1.0,
-    ) -> list[list[float]] | None:
+    ) -> list[RobotState] | None:
         """Plan a trajectory from start to goal.
 
         Args:
@@ -314,7 +315,7 @@ class MotionPlanner:
             return self.is_state_valid(robot_state)
 
         self._setup.setStateValidityChecker(
-            ob.StateValidityCheckerFn(is_ompl_state_valid)
+            ob.StateValidityCheckerFn(is_ompl_state_valid),
         )
         if not self.is_state_valid(start_state):
             LOGGER.error("Start state is invalid - in collision or out of bounds")
@@ -323,7 +324,8 @@ class MotionPlanner:
             LOGGER.error("Goal state is invalid - in collision or out of bounds")
             return None
         self._setup.setStartAndGoalStates(
-            self.as_ompl_state(start_state), self.as_ompl_state(goal_state)
+            self.as_ompl_state(start_state),
+            self.as_ompl_state(goal_state),
         )
         solve_result = self._setup.solve(timeout)
         if not solve_result:
@@ -371,7 +373,7 @@ class MotionPlanner:
 
         solution = []
         for state in simplified_path.getStates():
-            solution.append(self.from_ompl_state(state).qpos)
+            solution.append(start_state.clone(self.from_ompl_state(state)))
         LOGGER.info(f"Found solution with {len(solution)} waypoints")
         return solution
 
@@ -386,15 +388,15 @@ class MotionPlanner:
         """
         ompl_state = self.as_ompl_state(robot_state)
         return self._setup.getSpaceInformation().satisfiesBounds(
-            ompl_state()
+            ompl_state(),
         ) and not check_collision(robot_state)
 
     # TODO: Move to a standalone function
     def parameterize(
         self,
-        waypoints,
+        waypoints: list[RobotState],
         resample_dt=0.1,
-    ) -> list[tuple[list[float], list[float], float]] | None:
+    ) -> list[tuple[RobotState, float]] | None:
         """Parameterize the trajectory using Time Optimal Trajectory Generation http://www.golems.org/node/1570.
 
         Args:
@@ -409,7 +411,10 @@ class MotionPlanner:
         # or meters for prismatic joints.
         max_deviation = 0.1
         trajectory = totg.Trajectory(
-            totg.Path(np.asarray(waypoints), max_deviation),
+            totg.Path(
+                [waypoint[self._group_name] for waypoint in waypoints],
+                max_deviation,
+            ),
             self._robot.robot_model.velocity_limits,
             self._robot.acceleration_limits,
         )
@@ -418,8 +423,18 @@ class MotionPlanner:
             return None
         duration = trajectory.getDuration()
         parameterized_trajectory = []
+        rs = waypoints[0]
         for t in np.append(np.arange(0.0, duration, resample_dt), duration):
             parameterized_trajectory.append(
-                (trajectory.getPosition(t), trajectory.getVelocity(t), t),
+                (
+                    rs.clone(
+                        GroupState(
+                            self._group_name,
+                            trajectory.getPosition(t),
+                            trajectory.getVelocity(t),
+                        ),
+                    ),
+                    t,
+                ),
             )
         return parameterized_trajectory

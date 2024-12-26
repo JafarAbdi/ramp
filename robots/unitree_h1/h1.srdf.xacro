@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://www.ros.org/wiki/xacro" name="disable_collisions">
+  <disable_collisions link1="pelvis" link2="torso_link" reason="Default"/>
+  <disable_collisions link1="left_hip_yaw_link" link2="left_hip_roll_link" reason="Default"/>
+  <disable_collisions link1="left_hip_pitch_link" link2="left_knee_link" reason="Default"/>
+  <disable_collisions link1="right_hip_yaw_link" link2="right_hip_roll_link" reason="Default"/>
+  <disable_collisions link1="right_hip_pitch_link" link2="right_knee_link" reason="Default"/>
+  <disable_collisions link1="torso_link" link2="left_shoulder_pitch_link" reason="Default"/>
+  <disable_collisions link1="torso_link" link2="right_shoulder_pitch_link" reason="Default"/>
+  <disable_collisions link1="left_shoulder_pitch_link" link2="left_shoulder_roll_link" reason="Default"/>
+  <disable_collisions link1="left_shoulder_roll_link" link2="left_shoulder_yaw_link" reason="Default"/>
+  <disable_collisions link1="left_shoulder_yaw_link" link2="left_elbow_link" reason="Default"/>
+  <disable_collisions link1="right_shoulder_pitch_link" link2="right_shoulder_roll_link" reason="Default"/>
+  <disable_collisions link1="right_shoulder_roll_link" link2="right_shoulder_yaw_link" reason="Default"/>
+  <disable_collisions link1="right_shoulder_yaw_link" link2="right_elbow_link" reason="Default"/>
+</robot>

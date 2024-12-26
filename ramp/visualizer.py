@@ -4,7 +4,7 @@ import meshcat
 import meshcat_shapes
 import pinocchio
 
-from ramp.robot import Robot
+from ramp.robot import Robot, RobotState
 
 
 class Visualizer:
@@ -18,14 +18,14 @@ class Visualizer:
         """
         self.robot = robot
         self.meshcat_visualizer = pinocchio.visualize.MeshcatVisualizer(
-            robot.model,
-            robot.collision_model,
-            robot.visual_model,
+            robot.robot_model.model,
+            robot.robot_model.collision_model,
+            robot.robot_model.visual_model,
         )
         self.trajectory_visualizer = pinocchio.visualize.MeshcatVisualizer(
-            robot.model,
-            robot.collision_model,
-            robot.visual_model,
+            robot.robot_model.model,
+            robot.robot_model.collision_model,
+            robot.robot_model.visual_model,
         )
         self.meshcat_visualizer.initViewer(
             viewer=meshcat.Visualizer(zmq_url="tcp://127.0.0.1:6000"),
@@ -38,14 +38,14 @@ class Visualizer:
         self.meshcat_visualizer.loadViewerModel()
         # TODO: The frames are pretty noisy - add a way to toggle them
         self.meshcat_visualizer.displayFrames(visibility=False)
-        self.meshcat_visualizer.display(pinocchio.neutral(robot.model))
+        self.meshcat_visualizer.display(pinocchio.neutral(robot.robot_model.model))
 
         self.trajectory_visualizer.viewer["trajectory"].set_property(
             "visible",
             value=False,
         )
         self.trajectory_visualizer.loadViewerModel(rootNodeName="trajectory")
-        self.trajectory_visualizer.display(pinocchio.neutral(robot.model))
+        self.trajectory_visualizer.display(pinocchio.neutral(robot.robot_model.model))
 
     def check_data(self, visualizer: pinocchio.visualize.MeshcatVisualizer):
         """Check if the model data changed and rebuild the data if needed."""
@@ -56,18 +56,16 @@ class Visualizer:
             visualizer.loadViewerModel(rootNodeName=visualizer.viewerRootNodeName)
 
     # TODO: Make it use q from pinocchio directly?
-    def robot_state(self, joint_positions) -> None:
+    def robot_state(self, robot_state: RobotState) -> None:
         """Visualize a robot state.
 
         Args:
             joint_positions: The joint positions to visualize.
         """
         self.check_data(self.meshcat_visualizer)
-        self.meshcat_visualizer.display(
-            self.robot.as_pinocchio_joint_positions(joint_positions),
-        )
+        self.meshcat_visualizer.display(robot_state.qpos)
 
-    def robot_trajectory(self, waypoints: list[list[float]]) -> None:
+    def robot_trajectory(self, waypoints: list[RobotState]) -> None:
         """Visualize a robot trajectory.
 
         Args:
@@ -84,9 +82,7 @@ class Visualizer:
         for i, waypoint in enumerate(waypoints):
             with animation.at_frame(viewer, i) as frame:
                 self.trajectory_visualizer.viewer = frame
-                self.trajectory_visualizer.display(
-                    self.robot.as_pinocchio_joint_positions(waypoint),
-                )
+                self.trajectory_visualizer.display(waypoint.qpos)
         self.trajectory_visualizer.viewer = viewer
         self.trajectory_visualizer.viewer.set_animation(animation)
 

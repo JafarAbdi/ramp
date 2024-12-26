@@ -5,7 +5,6 @@ import pinocchio
 import pytest
 
 from ramp.robot import Robot, RobotState, GroupState
-from ramp.constants import GROUP_NAME
 from ramp.ik_solver import IKSolver
 from ramp.exceptions import (
     MissingBaseLinkError,
@@ -16,6 +15,7 @@ from ramp.exceptions import (
 from ramp.motion_planner import MotionPlanner
 
 FILE_PATH = pathlib.Path(__file__).parent
+GROUP_NAME = "arm"
 
 
 def test_motion_planning():

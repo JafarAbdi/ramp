@@ -5,9 +5,7 @@ description = "rrr.xml"
 [group.arm]
 joints = ["joint1", "joint2", "joint3"]
 tcp_link_name = "end_effector"
-
-[named_states]
-home = [0.0, 0.0, 0.0]
+named_states = { home = [0.0, 0.0, 0.0] }
 
 [acceleration_limits]
 joint1 = 1.0

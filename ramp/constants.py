@@ -1,10 +1,5 @@
 """This module contains the constants used in the package."""
 
-from typing import Final
-
-# TODO: Remove hardcoded group_name
-GROUP_NAME: Final = "arm"
-
 # Loading from robot_descriptions
 ROBOT_DESCRIPTION_PREFIX = "robot-descriptions::"
 MUJOCO_DESCRIPTION_VARIANT = "_mj_"

@@ -13,20 +13,7 @@ joints = [
   "wrist_3_joint",
 ]
 tcp_link_name = "tcp_link"
-gripper = { actuated_joint = "finger_joint", open = 0.0, close = 0.695 }
-
-[named_states]
-home = [
-  # Group arm
-  0.0,
-  0.0,
-  0.0,
-  0.0,
-  0.0,
-  0.0,
-  # Group gripper
-  0.0,
-]
+named_states = { home = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] }
 
 # URDF doesn't provide acceleration limits
 [acceleration_limits]

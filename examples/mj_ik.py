@@ -11,7 +11,6 @@ from mujoco_simulator_py.mujoco_interface import MuJoCoInterface
 from ramp.robot import Robot
 from ramp.mj_robot import MjRobot
 from ramp.ik_solver import IKSolver
-from ramp.constants import GROUP_NAME
 
 logging.basicConfig(
     level="NOTSET",
@@ -24,6 +23,7 @@ LOGGER = logging.getLogger(__name__)
 
 zenoh.init_log_from_env_or("error")
 
+GROUP_NAME = "arm"
 # > robot = Robot(pathlib.Path("robots/rrr_mj/configs.toml"))
 robot = Robot(pathlib.Path("robots/panda_mj/configs.toml"))
 
