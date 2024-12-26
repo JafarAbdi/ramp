@@ -55,6 +55,7 @@ class Visualizer:
             visualizer.rebuildData()
             visualizer.loadViewerModel(rootNodeName=visualizer.viewerRootNodeName)
 
+    # TODO: Make it use q from pinocchio directly?
     def robot_state(self, joint_positions) -> None:
         """Visualize a robot state.
 

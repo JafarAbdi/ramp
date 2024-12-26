@@ -8,12 +8,12 @@ from collections.abc import Callable
 
 import numpy as np
 import ompl
+
 import time_optimal_trajectory_generation_py as totg
 from ompl import base as ob
 from ompl import geometric as og
 
 from ramp.constants import (
-    GROUP_NAME,
     PINOCCHIO_FREEFLYER_JOINT,
     PINOCCHIO_PLANAR_JOINT,
     PINOCCHIO_PRISMATIC_JOINT,
@@ -23,7 +23,7 @@ from ramp.constants import (
     PINOCCHIO_TRANSLATION_JOINT,
     PINOCCHIO_UNBOUNDED_JOINT,
 )
-from ramp.robot import Robot
+from ramp.robot import Robot, RobotState, GroupState, check_collision
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(level=os.getenv("LOG_LEVEL", "INFO").upper())
@@ -125,7 +125,7 @@ class ProjectionEvaluatorLinkPose(ob.ProjectionEvaluator):
 class MotionPlanner:
     """A wrapper for OMPL planners."""
 
-    def __init__(self, robot: Robot, planner=None) -> None:
+    def __init__(self, robot: Robot, group_name: str, planner=None) -> None:
         """Initialize the motion planner.
 
         Args:
@@ -133,10 +133,11 @@ class MotionPlanner:
             planner: The planner to use.
         """
         self._robot = robot
+        self._group_name = group_name
         self._space = ob.CompoundStateSpace()
         self.state_spaces = []
-        for idx in robot.actuated_joint_indices:
-            joint = robot.model.joints[int(idx)]
+        for idx in robot.robot_model.groups[group_name].joint_indices:
+            joint = robot.robot_model.model.joints[int(idx)]
             joint_type = joint.shortname()
             if (
                 re.match(PINOCCHIO_REVOLUTE_JOINT, joint_type)
@@ -145,8 +146,12 @@ class MotionPlanner:
             ):
                 bounds = ob.RealVectorBounds(1)
                 space = ob.RealVectorStateSpace(1)
-                bounds.setLow(0, robot.model.lowerPositionLimit[joint.idx_q])
-                bounds.setHigh(0, robot.model.upperPositionLimit[joint.idx_q])
+                bounds.setLow(
+                    0, robot.robot_model.model.lowerPositionLimit[joint.idx_q]
+                )
+                bounds.setHigh(
+                    0, robot.robot_model.model.upperPositionLimit[joint.idx_q]
+                )
                 space.setBounds(bounds)
                 self._space.addSubspace(space, 1.0)
                 self.state_spaces.append(ob.STATE_SPACE_REAL_VECTOR)
@@ -195,20 +200,21 @@ class MotionPlanner:
                 msg = f"Unknown joint type: '{joint_type}' for joint '{robot.model.names[int(idx)]}'"
                 raise ValueError(msg)
 
-        def pose_fn(state):
-            return robot.get_frame_pose(
-                self.from_ompl_state(state),
-                robot.groups[GROUP_NAME].tcp_link_name,
-            ).np
+        # if robot.groups[GROUP_NAME].tcp_link_name is not None:
+        #
+        #     def pose_fn(state):
+        #         return robot.get_frame_pose(
+        #             self.from_ompl_state(state),
+        #             robot.groups[GROUP_NAME].tcp_link_name,
+        #         ).np
+        #
+        #     self._space.registerDefaultProjection(
+        #         ProjectionEvaluatorLinkPose(self._space, pose_fn),
+        #     )
 
-        self._space.registerDefaultProjection(
-            ProjectionEvaluatorLinkPose(self._space, pose_fn),
-        )
         self._setup = og.SimpleSetup(self._space)
         LOGGER.debug(self._setup.getStateSpace().settings())
-        self._setup.setStateValidityChecker(
-            ob.StateValidityCheckerFn(self.is_state_valid),
-        )
+
         if planner is not None:
             self._setup.setPlanner(self._get_planner(planner))
 
@@ -223,15 +229,18 @@ class MotionPlanner:
             )
             raise
 
-    def as_ompl_state(self, joint_positions):
+    def as_ompl_state(self, robot_state: RobotState) -> ob.State:
         """Convert joint positions to ompl state."""
-        assert len(joint_positions) == len(self._robot.actuated_joint_position_indices)
         state = ob.State(self._space)
-        for i, joint_position in enumerate(joint_positions):
+        for i, joint_position in enumerate(
+            robot_state.qpos[
+                self._robot.robot_model[self._group_name].joint_position_indices
+            ]
+        ):
             state[i] = joint_position
         return state
 
-    def from_ompl_state(self, state: ob.State):
+    def from_ompl_state(self, state: ob.State) -> GroupState:
         """Convert ompl state to joint positions."""
         joint_positions = []
         for idx, (substate, space) in enumerate(
@@ -272,13 +281,13 @@ class MotionPlanner:
             else:
                 msg = f"Unknown state space: {space}"
                 raise ValueError(msg)
-        return joint_positions
+        return GroupState(self._group_name, joint_positions)
 
     # TODO: Add termination conditions doc/markdown/plannerTerminationConditions.md
     def plan(
         self,
-        start_joint_positions: list[float],
-        goal_joint_positions: list[float],
+        start_state: RobotState,
+        goal_state: RobotState,
         timeout: float = 1.0,
     ) -> list[list[float]] | None:
         """Plan a trajectory from start to goal.
@@ -291,22 +300,24 @@ class MotionPlanner:
         Returns:
             The trajectory as a list of joint positions or None if no solution was found.
         """
-        assert len(start_joint_positions) == len(
-            self._robot.actuated_joint_position_indices,
-        )
-        assert len(goal_joint_positions) == len(
-            self._robot.actuated_joint_position_indices,
-        )
         self._setup.clear()
-        start = self.as_ompl_state(start_joint_positions)
-        if not self.is_state_valid(start()):
+
+        def is_ompl_state_valid(state):
+            robot_state = start_state.clone(self.from_ompl_state(state))
+            return self.is_state_valid(robot_state)
+
+        self._setup.setStateValidityChecker(
+            ob.StateValidityCheckerFn(is_ompl_state_valid)
+        )
+        if not self.is_state_valid(start_state):
             LOGGER.error("Start state is invalid - in collision or out of bounds")
             return None
-        goal = self.as_ompl_state(goal_joint_positions)
-        if not self.is_state_valid(goal()):
+        if not self.is_state_valid(goal_state):
             LOGGER.error("Goal state is invalid - in collision or out of bounds")
             return None
-        self._setup.setStartAndGoalStates(start, goal)
+        self._setup.setStartAndGoalStates(
+            self.as_ompl_state(start_state), self.as_ompl_state(goal_state)
+        )
         solve_result = self._setup.solve(timeout)
         if not solve_result:
             LOGGER.info("Did not find solution!")
@@ -353,11 +364,11 @@ class MotionPlanner:
 
         solution = []
         for state in simplified_path.getStates():
-            solution.append(self.from_ompl_state(state))
+            solution.append(self.from_ompl_state(state).qpos)
         LOGGER.info(f"Found solution with {len(solution)} waypoints")
         return solution
 
-    def is_state_valid(self, state):
+    def is_state_valid(self, robot_state: RobotState) -> bool:
         """Check if the state is valid, i.e. not in collision or out of bounds.
 
         Args:
@@ -366,10 +377,12 @@ class MotionPlanner:
         Returns:
             True if the state is valid, False otherwise.
         """
+        ompl_state = self.as_ompl_state(robot_state)
         return self._setup.getSpaceInformation().satisfiesBounds(
-            state,
-        ) and not self._robot.check_collision(self.from_ompl_state(state))
+            ompl_state()
+        ) and not check_collision(robot_state)
 
+    # TODO: Move to a standalone function
     def parameterize(
         self,
         waypoints,
@@ -390,7 +403,7 @@ class MotionPlanner:
         max_deviation = 0.1
         trajectory = totg.Trajectory(
             totg.Path(np.asarray(waypoints), max_deviation),
-            self._robot.velocity_limits,
+            self._robot.robot_model.velocity_limits,
             self._robot.acceleration_limits,
         )
         if not trajectory.isValid():

@@ -7,7 +7,7 @@ import logging
 import os
 import re
 import sys
-from dataclasses import dataclass
+from dataclasses import dataclass, field, InitVar
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -88,6 +88,113 @@ def as_pinocchio_pose(pose):
     )
 
 
+def get_continuous_joint_indices(model: pinocchio.Model) -> np.ndarray:
+    """Get the continuous joint indices."""
+    # Continuous joints have 2 q, it's represented as cos(theta), sin(theta)
+    continuous_joint_indices = []
+    for joint in model.joints:
+        joint_type = joint.shortname()
+        if re.match(PINOCCHIO_UNBOUNDED_JOINT, joint_type):
+            continuous_joint_indices.append(joint.idx_q)
+        elif joint_type == PINOCCHIO_PLANAR_JOINT:
+            continuous_joint_indices.append(
+                joint.idx_q + 2,
+            )  # theta of the planar joint is continuous
+    return np.asarray(continuous_joint_indices)
+
+
+def joint_ids_to_name_indices(model: pinocchio.Model) -> dict[int, int]:
+    """Return a mapping from joint ids to joint indices."""
+    # Joint id != Joint indices, so we need a mapping between them
+    joint_id_to_indices = {}
+    for idx, joint in enumerate(model.joints):
+        joint_id_to_indices[joint.id] = idx
+    return joint_id_to_indices
+
+
+def joint_ids_to_indices(model: pinocchio.Model) -> dict[int, int]:
+    """Return a mapping from joint ids to joint indices."""
+
+    def joint_indices(joint: pinocchio.JointModel):
+        """Return the joint indices."""
+        joint_type = joint.shortname()
+        if re.match(PINOCCHIO_UNBOUNDED_JOINT, joint_type):
+            return [joint.idx_q]
+        if (
+            joint_type == PINOCCHIO_PLANAR_JOINT
+        ):  # x, y, theta (Theta is continuous so 2 values, but we will handle it in the (as/from)_pinocchio_joint_position_continuous)
+            return [joint.idx_q + idx for idx in range(3)]
+        return [joint.idx_q + idx for idx in range(joint.nq)]
+
+    # Joint id != Joint indices, so we need a mapping between them
+    joint_id_to_indices = {}
+    for joint in model.joints:
+        joint_id_to_indices[joint.id] = joint_indices(joint)
+    return joint_id_to_indices
+
+
+def joint_ids_to_velocity_indices(model: pinocchio.Model) -> dict[int, int]:
+    """Return a mapping from joint ids to joint velocity indices."""
+    # Joint id != Joint indices, so we need a mapping between them
+    joint_id_to_indices = {}
+    for joint in model.joints:
+        joint_id_to_indices[joint.id] = joint.idx_v
+    return joint_id_to_indices
+
+
+def load_mimic_joints(
+    robot_description: Path,
+    model: pinocchio.Model,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    if robot_description.suffix != ".urdf":
+        return np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([])
+    with filter_urdf_parser_stderr():
+        urdf = urdf_parser.URDF.from_xml_file(robot_description)
+    mimic_joint_indices = []
+    mimic_joint_multipliers = []
+    mimic_joint_offsets = []
+    mimicked_joint_indices = []
+    joint_id_to_indices = joint_ids_to_indices(model)
+    for joint in urdf.joints:
+        if joint.mimic is not None:
+            mimicked_joint_index = joint_id_to_indices[
+                model.getJointId(joint.mimic.joint)
+            ]
+            mimic_joint_index = joint_id_to_indices[model.getJointId(joint.name)]
+            assert (
+                len(mimic_joint_index) == 1
+            ), f"Only single joint mimic supported {mimic_joint_index}"
+            assert (
+                len(mimicked_joint_index) == 1
+            ), f"Only single mimicked joint is supported {mimicked_joint_index}"
+            mimicked_joint_indices.append(mimicked_joint_index[0])
+            mimic_joint_indices.append(mimic_joint_index[0])
+            mimic_joint_multipliers.append(joint.mimic.multiplier or 1.0)
+            mimic_joint_offsets.append(joint.mimic.offset or 0.0)
+    return (
+        np.asarray(mimic_joint_indices),
+        np.asarray(mimic_joint_multipliers),
+        np.asarray(mimic_joint_offsets),
+        np.asarray(mimicked_joint_indices),
+    )
+
+
+def as_pinocchio_joint_position_continuous(q, joint_index: int | np.ndarray):
+    """Convert continuous joint positions to pinocchio joint positions."""
+    q[joint_index], q[joint_index + 1] = (
+        np.cos(q[joint_index]),
+        np.sin(q[joint_index]),
+    )
+
+
+def from_pinocchio_joint_positions_continuous(
+    q,
+    joint_index: int | np.ndarray,
+):
+    """Convert pinocchio joint positions to continuous joint positions."""
+    q[joint_index] = np.arctan2(q[joint_index + 1], q[joint_index])
+
+
 def load_xacro(file_path: Path, mappings: dict | None = None) -> str:
     """Load a xacro file and render it with the given mappings."""
     if not file_path.exists():
@@ -113,51 +220,85 @@ def load_xacro(file_path: Path, mappings: dict | None = None) -> str:
     ).to_urdf_string()
 
 
-def filter_values_by_joint_names(
-    keys: list[str],
-    values: list[float],
-    joint_names: list[str],
-) -> list[float]:
-    """Filter values by joint names."""
-    filtered_values = []
-    for joint_name in joint_names:
-        try:
-            index = keys.index(joint_name)
-        except ValueError:
-            msg = f"Joint name '{joint_name}' not in input keys {keys}"
-            raise ValueError(msg) from None
-        filtered_values.append(values[index])
-    return filtered_values
-
-
-@dataclass(slots=True)
-class Gripper:
-    """Gripper configs.
-
-    Args:
-        open_value: Open position
-        close_value: Close position
-        actuated_joint: Name of the actuated joint
-    """
-
-    open_value: float
-    close_value: float
-    actuated_joint: str
-
-
-@dataclass(slots=True)
-class Group:
-    """Group configs.
-
-    Args:
-        joints: List of joint names
-        tcp_link_name (optional): Name of the TCP link
-        gripper (optional): Gripper configs
-    """
-
+@dataclass(frozen=True, slots=True)
+class GroupModel:
     joints: list[str]
+    joint_indices: np.ndarray
+    joint_position_indices: np.ndarray
+    joint_velocity_indices: np.ndarray
+    named_states: dict[str, np.ndarray] = field(default_factory=dict)
     tcp_link_name: str | None = None
-    gripper: Gripper | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class RobotModel:
+    model_filename: InitVar[Path]
+    model: pinocchio.Model
+    collision_model: pinocchio.GeometryModel
+    visual_model: pinocchio.GeometryModel
+    groups: dict[str, GroupModel]
+    joint_names: list[str] = field(init=False)
+    mimic_joint_indices: np.ndarray = field(init=False)
+    mimic_joint_multipliers: np.ndarray = field(init=False)
+    mimic_joint_offsets: np.ndarray = field(init=False)
+    mimicked_joint_indices: np.ndarray = field(init=False)
+    continuous_joint_indices: np.ndarray = field(init=False)
+
+    def __post_init__(self, model_filename):
+        object.__setattr__(
+            self, "continuous_joint_indices", get_continuous_joint_indices(self.model)
+        )
+        (
+            mimic_joint_indices,
+            mimic_joint_multipliers,
+            mimic_joint_offsets,
+            mimicked_joint_indices,
+        ) = load_mimic_joints(model_filename, self.model)
+        object.__setattr__(self, "mimic_joint_indices", mimic_joint_indices)
+        object.__setattr__(self, "mimic_joint_multipliers", mimic_joint_multipliers)
+        object.__setattr__(self, "mimic_joint_offsets", mimic_joint_offsets)
+        object.__setattr__(self, "mimicked_joint_indices", mimicked_joint_indices)
+        joint_names = []
+        for group in self.groups.values():
+            joint_names.extend(group.joints)
+        object.__setattr__(self, "joint_names", joint_names)
+
+    def __getitem__(self, key):
+        return self.groups[key]
+
+    @property
+    def velocity_limits(self) -> list[float]:
+        """Return the velocity limits.
+
+        Returns:
+            List of velocity limits.
+        """
+        return np.concatenate(
+            [
+                self.model.velocityLimit[group.joint_position_indices]
+                for group in self.groups.values()
+            ]
+        )
+
+    @property
+    def effort_limits(self) -> list[float]:
+        """Return the effort limits.
+
+        Returns:
+            List of effort limits.
+        """
+        return np.concatenate(
+            [
+                self.model.effortLimit[group.joint_position_indices]
+                for group in self.groups.values()
+            ]
+        )
+
+
+@dataclass(slots=True)
+class GroupState:
+    name: str
+    qpos: np.ndarray
 
 
 class Robot:
@@ -177,13 +318,8 @@ class Robot:
             raise FileNotFoundError(msg)
         configs = toml.load(config_path)
 
-        self.mimic_joint_indices = np.asarray([])
-        self.mimic_joint_multipliers = np.asarray([])
-        self.mimic_joint_offsets = np.asarray([])
-        self.mimicked_joint_indices = np.asarray([])
-
         mappings = configs["robot"].get("mappings", {})
-        self._load_models(
+        model, collision_model, visual_model = self._load_models(
             config_path.parent
             / self._get_robot_description_path(
                 configs["robot"]["description"],
@@ -191,13 +327,13 @@ class Robot:
             mappings=mappings,
         )
 
-        self.collision_model.addAllCollisionPairs()
+        collision_model.addAllCollisionPairs()
         self._geometry_objects = {}
         verbose = LOGGER.level == logging.DEBUG
         if srdf_path := configs["robot"].get("disable_collisions"):
             pinocchio.removeCollisionPairsFromXML(
-                self.model,
-                self.collision_model,
+                model,
+                collision_model,
                 load_xacro(
                     config_path.parent / srdf_path,
                     mappings=mappings,
@@ -207,7 +343,7 @@ class Robot:
         if verbose:
             pretty.pprint(configs)
 
-        self.link_names = [frame.name for frame in self.model.frames]
+        self.link_names = [frame.name for frame in model.frames]
         self.base_link = configs["robot"]["base_link"]
         if self.base_link not in self.link_names:
             msg = f"Base link '{self.base_link}' not in link names: {self.link_names}"
@@ -215,101 +351,32 @@ class Robot:
                 msg,
             )
 
-        self.groups = self._make_groups(configs)
+        groups = self._make_groups(model, configs)
 
-        self.joint_names = []
-        for group in self.groups.values():
-            self.joint_names.extend(group.joints)
-            if group.gripper is not None:
-                self.joint_names.append(group.gripper.actuated_joint)
+        joint_names = []
+        for group in groups.values():
+            joint_names.extend(group.joints)
 
         acceleration_limits = configs["acceleration_limits"]
         self.acceleration_limits = []
-        for joint_name in self.joint_names:
+        for joint_name in joint_names:
             if (
                 joint_acceleration_limit := acceleration_limits.get(joint_name)
             ) is None:
                 raise MissingAccelerationLimitError(
-                    self.joint_names,
+                    joint_names,
                     acceleration_limits.keys(),
                 )
             self.acceleration_limits.append(joint_acceleration_limit)
         self.acceleration_limits = np.asarray(self.acceleration_limits)
 
-        # TODO: Should this be group specific????
-        # TODO: Extend the comment about joint indices != joint ids
-        joint_id_to_indices = self.joint_ids_to_indices()
-        joint_id_to_velocity_indices = self.joint_ids_to_velocity_indices()
-        joint_id_to_name_indices = self.joint_ids_to_name_indices()
-        actuated_joint_indices = []
-        actuated_joint_position_indices = []
-        actuated_joint_velocity_indices = []
-        for joint_name in self.joint_names:
-            joint_id = self.model.getJointId(joint_name)
-            joint = self.model.joints[joint_id]
-            actuated_joint_indices.append(joint_id_to_name_indices[joint_id])
-            actuated_joint_position_indices.extend(joint_id_to_indices[joint_id])
-            actuated_joint_velocity_indices.append(
-                joint_id_to_velocity_indices[joint_id],
-            )
-        self.actuated_joint_indices = np.asarray(actuated_joint_indices)
-        self.actuated_joint_position_indices = np.asarray(
-            actuated_joint_position_indices,
+        self.robot_model = RobotModel(
+            self.model_filename,
+            model,
+            collision_model,
+            visual_model,
+            groups,
         )
-        self.actuated_joint_velocity_indices = np.asarray(
-            actuated_joint_velocity_indices,
-        )
-        # Continuous joints have 2 q, it's represented as cos(theta), sin(theta)
-        continuous_joint_indices = []
-        for joint in self.model.joints:
-            joint_type = joint.shortname()
-            if re.match(PINOCCHIO_UNBOUNDED_JOINT, joint_type):
-                continuous_joint_indices.append(joint.idx_q)
-            elif joint_type == PINOCCHIO_PLANAR_JOINT:
-                continuous_joint_indices.append(
-                    joint.idx_q + 2,
-                )  # theta of the planar joint is continuous
-        self.continuous_joint_indices = np.asarray(continuous_joint_indices)
-
-        self.named_states = self._make_named_states(configs)
-
-        self._ik_solver = None
-
-    def joint_ids_to_name_indices(self) -> dict[int, int]:
-        """Return a mapping from joint ids to joint indices."""
-        # Joint id != Joint indices, so we need a mapping between them
-        joint_id_to_indices = {}
-        for idx, joint in enumerate(self.model.joints):
-            joint_id_to_indices[joint.id] = idx
-        return joint_id_to_indices
-
-    def joint_ids_to_indices(self) -> dict[int, int]:
-        """Return a mapping from joint ids to joint indices."""
-
-        def joint_indices(joint: pinocchio.JointModel):
-            """Return the joint indices."""
-            joint_type = joint.shortname()
-            if re.match(PINOCCHIO_UNBOUNDED_JOINT, joint_type):
-                return [joint.idx_q]
-            if (
-                joint_type == PINOCCHIO_PLANAR_JOINT
-            ):  # x, y, theta (Theta is continuous so 2 values, but we will handle it in the (as/from)_pinocchio_joint_position_continuous)
-                return [joint.idx_q + idx for idx in range(3)]
-            return [joint.idx_q + idx for idx in range(joint.nq)]
-
-        # Joint id != Joint indices, so we need a mapping between them
-        joint_id_to_indices = {}
-        for joint in self.model.joints:
-            joint_id_to_indices[joint.id] = joint_indices(joint)
-        return joint_id_to_indices
-
-    def joint_ids_to_velocity_indices(self) -> dict[int, int]:
-        """Return a mapping from joint ids to joint velocity indices."""
-        # Joint id != Joint indices, so we need a mapping between them
-        joint_id_to_indices = {}
-        for joint in self.model.joints:
-            joint_id_to_indices[joint.id] = joint.idx_v
-        return joint_id_to_indices
 
     def _get_robot_description_path(self, robot_description: str) -> Path:
         """Get the robot description path.
@@ -337,7 +404,9 @@ class Robot:
             return Path(robot_description_module.URDF_PATH)
         return Path(robot_description)
 
-    def _load_xacro(self, robot_description_path: Path, mappings: dict) -> Path:
+    def _load_xacro(
+        self, robot_description_path: Path, mappings: dict
+    ) -> tuple[pinocchio.Model, pinocchio.GeometryModel, pinocchio.GeometryModel]:
         """Load the model/collision & visual models from an xacro file.
 
         Args:
@@ -350,8 +419,6 @@ class Robot:
             robot_description_path,
             mappings,
         )
-        with filter_urdf_parser_stderr():
-            urdf = urdf_parser.URDF.from_xml_string(robot_description)
         # Loading Pinocchio model
         with NamedTemporaryFile(
             mode="w",
@@ -361,45 +428,13 @@ class Robot:
         ) as parsed_file:
             parsed_file_path = parsed_file.name
             parsed_file.write(robot_description)
-        models: tuple[pinocchio.Model, pinocchio.Model, pinocchio.Model] = (
-            pinocchio.buildModelsFromUrdf(parsed_file_path)
-        )
-        (
-            self.model,
-            self.collision_model,
-            self.visual_model,
-        ) = models
+        self.model_filename = Path(parsed_file_path)
 
-        mimic_joint_indices = []
-        mimic_joint_multipliers = []
-        mimic_joint_offsets = []
-        mimicked_joint_indices = []
-        joint_id_to_indices = self.joint_ids_to_indices()
-        for joint in urdf.joints:
-            if joint.mimic is not None:
-                mimicked_joint_index = joint_id_to_indices[
-                    self.model.getJointId(joint.mimic.joint)
-                ]
-                mimic_joint_index = joint_id_to_indices[
-                    self.model.getJointId(joint.name)
-                ]
-                assert (
-                    len(mimic_joint_index) == 1
-                ), f"Only single joint mimic supported {mimic_joint_index}"
-                assert (
-                    len(mimicked_joint_index) == 1
-                ), f"Only single mimicked joint is supported {mimicked_joint_index}"
-                mimicked_joint_indices.append(mimicked_joint_index[0])
-                mimic_joint_indices.append(mimic_joint_index[0])
-                mimic_joint_multipliers.append(joint.mimic.multiplier or 1.0)
-                mimic_joint_offsets.append(joint.mimic.offset or 0.0)
-        self.mimic_joint_indices = np.asarray(mimic_joint_indices)
-        self.mimic_joint_multipliers = np.asarray(mimic_joint_multipliers)
-        self.mimic_joint_offsets = np.asarray(mimic_joint_offsets)
-        self.mimicked_joint_indices = np.asarray(mimicked_joint_indices)
-        return Path(parsed_file_path)
+        return pinocchio.buildModelsFromUrdf(parsed_file_path)
 
-    def _load_models(self, robot_description_path: Path, mappings: dict) -> None:
+    def _load_models(
+        self, robot_description_path: Path, mappings: dict
+    ) -> tuple[pinocchio.Model, pinocchio.GeometryModel, pinocchio.GeometryModel]:
         """Load the model/collision & visual models.
 
         Args:
@@ -408,16 +443,13 @@ class Robot:
         """
         match robot_description_path.suffix:
             case ".xacro" | ".urdf":
-                self.model_filename = self._load_xacro(robot_description_path, mappings)
+                return self._load_xacro(robot_description_path, mappings)
             case ".xml":
                 self.model_filename = robot_description_path
-                models: tuple[pinocchio.Model, pinocchio.Model, pinocchio.Model] = (
-                    pinocchio.shortcuts.buildModelsFromMJCF(
-                        str(self.model_filename),
-                        verbose=True,
-                    )
+                return pinocchio.shortcuts.buildModelsFromMJCF(
+                    str(self.model_filename),
+                    verbose=True,
                 )
-                self.model, self.collision_model, self.visual_model = models
             case _:
                 msg = f"Unknown robot description file type: {robot_description_path}"
                 raise ValueError(msg)
@@ -434,143 +466,68 @@ class Robot:
         geometry_object.parentJoint = 0
         geometry_object.meshColor = np.array([1.0, 0.0, 0.0, 1.0])
         geometry_object.placement = pose
-        geometry_object_collision_id = self.collision_model.addGeometryObject(
-            geometry_object,
+        geometry_object_collision_id = (
+            self.robot_model.collision_model.addGeometryObject(
+                geometry_object,
+            )
         )
         self._geometry_objects[name] = geometry_object_collision_id
-        self.visual_model.addGeometryObject(geometry_object)
+        self.robot_model.visual_model.addGeometryObject(geometry_object)
         for geometry_id in range(
-            len(self.collision_model.geometryObjects) - len(self._geometry_objects),
+            len(self.robot_model.collision_model.geometryObjects)
+            - len(self._geometry_objects),
         ):
-            self.collision_model.addCollisionPair(
+            self.robot_model.collision_model.addCollisionPair(
                 pinocchio.CollisionPair(self._geometry_objects[name], geometry_id),
             )
 
-    @staticmethod
-    def _make_gripper_from_configs(gripper_configs):
-        if gripper_configs is None:
-            return None
-        return Gripper(
-            open_value=gripper_configs["open"],
-            close_value=gripper_configs["close"],
-            actuated_joint=gripper_configs["actuated_joint"],
-        )
-
-    def _make_groups(self, configs):
+    def _make_groups(self, model: pinocchio.Model, configs):
         groups = {}
+        joint_id_to_indices = joint_ids_to_indices(model)
+        joint_id_to_velocity_indices = joint_ids_to_velocity_indices(model)
+        joint_id_to_name_indices = joint_ids_to_name_indices(model)
         for group_name, group_config in configs["group"].items():
-            groups[group_name] = Group(
-                joints=group_config["joints"],
-                tcp_link_name=group_config.get("tcp_link_name"),
-                gripper=self._make_gripper_from_configs(group_config.get("gripper")),
-            )
-            if groups[group_name].tcp_link_name is not None:
+            joints = group_config["joints"]
+            tcp_link_name = group_config.get("tcp_link_name")
+            if tcp_link_name is not None:
                 assert (
-                    groups[group_name].tcp_link_name in self.link_names
-                ), f"Group {group_name} TCP link '{groups[group_name].tcp_link_name}' not in link names: {self.link_names}"
-            if groups[group_name].gripper is not None:
-                assert (
-                    groups[group_name].gripper.actuated_joint in self.model.names
-                ), f"Gripper's actuated joint '{groups[group_name].gripper.actuated_joint}' not in model joints: {list(self.model.names)}"
-            for joint_name in groups[group_name].joints:
-                if joint_name not in self.model.names:
-                    msg = f"Joint '{joint_name}' for group '{group_name}' not in model joints: {list(self.model.names)}"
+                    tcp_link_name in self.link_names
+                ), f"Group {group_name} TCP link '{tcp_link_name}' not in link names: {self.link_names}"
+            for joint_name in joints:
+                if joint_name not in model.names:
+                    msg = f"Joint '{joint_name}' for group '{group_name}' not in model joints: {list(model.names)}"
                     raise MissingJointError(
                         msg,
                     )
+            # TODO: Extend the comment about joint indices != joint ids
+            actuated_joint_indices = []
+            actuated_joint_position_indices = []
+            actuated_joint_velocity_indices = []
+            for joint_name in joints:
+                joint_id = model.getJointId(joint_name)
+                joint = model.joints[joint_id]
+                actuated_joint_indices.append(joint_id_to_name_indices[joint_id])
+                actuated_joint_position_indices.extend(joint_id_to_indices[joint_id])
+                actuated_joint_velocity_indices.append(
+                    joint_id_to_velocity_indices[joint_id],
+                )
+            named_states = {}
+            for state_name, state_config in group_config.get(
+                "named_states", {}
+            ).items():
+                assert len(state_config) == len(
+                    actuated_joint_position_indices,
+                ), f"Named state '{state_name}' has {len(state_config)} joint positions, expected {len(actuated_joint_position_indices)} for {joints}"
+                named_states[state_name] = np.asarray(state_config)
+            groups[group_name] = GroupModel(
+                joints=joints,
+                joint_indices=np.asarray(actuated_joint_indices),
+                joint_position_indices=np.asarray(actuated_joint_position_indices),
+                joint_velocity_indices=np.asarray(actuated_joint_velocity_indices),
+                named_states=named_states,
+                tcp_link_name=tcp_link_name,
+            )
         return groups
-
-    def _make_named_states(self, configs):
-        named_states = {}
-        for state_name, state_config in configs["named_states"].items():
-            assert (
-                len(state_config)
-                == len(
-                    self.actuated_joint_position_indices,
-                )
-            ), f"Named state '{state_name}' has {len(state_config)} joint positions, expected {len(self.actuated_joint_position_indices)} for {self.joint_names}"
-            named_states[state_name] = state_config
-
-        return named_states
-
-    def _print_collision_results(self, collision_results):
-        for k in range(len(self.collision_model.collisionPairs)):
-            cr = collision_results[k]
-            cp = self.collision_model.collisionPairs[k]
-            if cr.isCollision():
-                LOGGER.debug(
-                    f"Collision between: ({self.collision_model.geometryObjects[cp.first].name}"
-                    f", {self.collision_model.geometryObjects[cp.second].name})",
-                )
-
-    def check_collision(self, joint_positions, *, verbose=False):
-        """Check if the robot is in collision with the given joint positions.
-
-        Args:
-            joint_positions: Joint positions of the robot.
-            verbose: Whether to print the collision results.
-
-        Returns:
-            True if the robot is in collision, False otherwise.
-        """
-        data = self.model.createData()
-        collision_data = self.collision_model.createData()
-
-        pinocchio.computeCollisions(
-            self.model,
-            data,
-            self.collision_model,
-            collision_data,
-            self.as_pinocchio_joint_positions(joint_positions),
-            stop_at_first_collision=not verbose,
-        )
-        if verbose:
-            self._print_collision_results(collision_data.collisionResults)
-        return np.any([cr.isCollision() for cr in collision_data.collisionResults])
-
-    def _from_pinocchio_joint_positions_continuous(
-        self,
-        q,
-        joint_index: int | np.ndarray,
-    ):
-        """Convert pinocchio joint positions to continuous joint positions."""
-        q[joint_index] = np.arctan2(q[joint_index + 1], q[joint_index])
-
-    def from_pinocchio_joint_positions(self, q):
-        """Convert pinocchio joint positions to joint positions."""
-        joint_positions = np.copy(q)
-        if self.continuous_joint_indices.size != 0:
-            self._from_pinocchio_joint_positions_continuous(
-                joint_positions,
-                self.continuous_joint_indices,
-            )
-        return joint_positions[self.actuated_joint_position_indices]
-
-    def _as_pinocchio_joint_position_continuous(self, q, joint_index: int | np.ndarray):
-        """Convert continuous joint positions to pinocchio joint positions."""
-        q[joint_index], q[joint_index + 1] = (
-            np.cos(q[joint_index]),
-            np.sin(q[joint_index]),
-        )
-
-    def as_pinocchio_joint_positions(self, joint_positions):
-        """Convert joint positions to pinocchio joint positions."""
-        assert len(joint_positions) == len(
-            self.actuated_joint_position_indices,
-        ), f"{len(joint_positions)} != {len(self.actuated_joint_position_indices)}"
-        q = pinocchio.neutral(self.model)
-        q[self.actuated_joint_position_indices] = joint_positions
-        if self.mimic_joint_indices.size != 0:
-            q[self.mimic_joint_indices] = (
-                q[self.mimicked_joint_indices] * self.mimic_joint_multipliers
-                + self.mimic_joint_offsets
-            )
-        if self.continuous_joint_indices.size != 0:
-            self._as_pinocchio_joint_position_continuous(
-                q,
-                self.continuous_joint_indices,
-            )
-        return q
 
     def get_frame_pose(self, joint_positions, target_frame_name) -> pinocchio.SE3:
         """Get the pose of a frame."""
@@ -706,24 +663,6 @@ class Robot:
             )
         return joint_limits
 
-    @property
-    def velocity_limits(self) -> list[float]:
-        """Return the velocity limits.
-
-        Returns:
-            List of velocity limits.
-        """
-        return self.model.velocityLimit[self.actuated_joint_position_indices]
-
-    @property
-    def effort_limits(self) -> list[float]:
-        """Return the effort limits.
-
-        Returns:
-            List of effort limits.
-        """
-        return self.model.effortLimit[self.actuated_joint_position_indices]
-
 
 # TODO: Maybe delete and combine with Robot class?
 # Prefix with c for CasADi
@@ -764,3 +703,157 @@ class CasADiRobot:
             self.model.getFrameId(target_frame_name),
             reference_frame,
         )
+
+
+class RobotState:
+
+    def __init__(
+        self, robot_model: RobotModel, qpos0: np.ndarray | GroupState | None = None
+    ):
+        self.robot_model = robot_model
+        self.qpos = pinocchio.neutral(robot_model.model)
+        if qpos0 is not None:
+            self.qpos = self.as_pinocchio_joint_positions(qpos0)
+
+    @staticmethod
+    def from_group_state(robot_model: RobotModel, group_state: GroupState):
+        """Create a robot state from a group state."""
+        robot_state = RobotState(robot_model)
+        robot_state.qpos[
+            robot_model.groups[group_state.name].joint_position_indices
+        ] = group_state.qpos
+        return robot_state
+
+    # TODO: Should this return GroupState?
+    def __getitem__(self, key):
+        return self.qpos[self.robot_model.groups[key].joint_position_indices]
+
+    def clone(self, group_state: GroupState | None = None):
+        """Clone the robot state.
+
+        Args:
+            group_state: The group state to set.
+
+        Returns:
+            The cloned robot state with the group state set.
+        """
+        qpos = self.qpos.copy()
+        if group_state is not None:
+            assert (
+                group_state.name in self.robot_model.groups
+            ), f"Unknown group: {group_state.name} in {self.robot_model.groups.keys()}"
+            assert len(group_state.qpos) == len(
+                self.robot_model.groups[group_state.name].joint_position_indices,
+            ), f"Expected {len(self.robot_model.groups[group_state.name].joint_position_indices)} joint positions, got {len(group_state.qpos)}"
+            qpos[self.robot_model.groups[group_state.name].joint_position_indices] = (
+                group_state.qpos
+            )
+        return RobotState(self.robot_model, qpos)
+
+    # TODO: Update docs
+    # TODO: Maybe rename to as_pinocchio_qpos?
+    # Convert actuated qpos or group actuated qpos to pinocchio qpos
+    def as_pinocchio_joint_positions(
+        self, joint_positions: np.ndarray | GroupState
+    ) -> np.ndarray:
+        """Convert joint positions to pinocchio joint positions."""
+        q = self.qpos.copy()
+        if isinstance(joint_positions, GroupState):
+            q[self.groups[joint_positions.name].joint_position_indices] = (
+                joint_positions.qpos
+            )
+        else:
+            # Loop through the groups and set the joint positions
+            start_index = 0
+            for group in self.robot_model.groups.values():
+                q[group.joint_position_indices] = joint_positions[
+                    start_index : start_index + len(group.joint_position_indices)
+                ]
+                start_index += len(group.joint_position_indices)
+
+        if self.robot_model.mimic_joint_indices.size != 0:
+            q[self.robot_model.mimic_joint_indices] = (
+                q[self.robot_model.mimicked_joint_indices]
+                * self.robot_model.mimic_joint_multipliers
+                + self.robot_model.mimic_joint_offsets
+            )
+        if self.robot_model.continuous_joint_indices.size != 0:
+            as_pinocchio_joint_position_continuous(
+                q,
+                self.robot_model.continuous_joint_indices,
+            )
+        return q
+
+    def actuated_qpos(self) -> np.ndarray:
+        """Return the actuated joint positions."""
+        qpos = self.qpos.copy()
+        if self.robot_model.continuous_joint_indices.size != 0:
+            from_pinocchio_joint_positions_continuous(
+                qpos,
+                self.robot_model.continuous_joint_indices,
+            )
+        return np.concatenate(
+            [
+                qpos[group.joint_position_indices]
+                for group in self.robot_model.groups.values()
+            ]
+        )
+
+    # # TODO: Rename to numpy()? Or active qpos? Actuated qpos?
+    # def from_pinocchio_joint_positions(self, q: np.ndarray) -> np.ndarray:
+    #     """Convert pinocchio joint positions to joint positions."""
+    #     assert len(q) == self.robot_model.model.nq
+    #     joint_positions = np.copy(q)
+    #     if self.robot_model.continuous_joint_indices.size != 0:
+    #         from_pinocchio_joint_positions_continuous(
+    #             joint_positions,
+    #             self.robot_model.continuous_joint_indices,
+    #         )
+    #     return np.concatenate(
+    #         [
+    #             joint_positions[group.joint_position_indices]
+    #             for group in self.robot_model.groups.values()
+    #         ]
+    #     )
+
+
+def print_collision_results(
+    collision_model: pinocchio.GeometryModel, collision_results
+):
+    for k in range(len(collision_model.collisionPairs)):
+        cr = collision_results[k]
+        cp = collision_model.collisionPairs[k]
+        if cr.isCollision():
+            LOGGER.debug(
+                f"Collision between: ({collision_model.geometryObjects[cp.first].name}"
+                f", {collision_model.geometryObjects[cp.second].name})",
+            )
+
+
+def check_collision(robot_state: RobotState, *, verbose=False):
+    """Check if the robot is in collision with the given joint positions.
+
+    Args:
+        joint_positions: Joint positions of the robot.
+        verbose: Whether to print the collision results.
+
+    Returns:
+        True if the robot is in collision, False otherwise.
+    """
+    robot_model = robot_state.robot_model
+    data = robot_model.model.createData()
+    collision_data = robot_model.collision_model.createData()
+
+    pinocchio.computeCollisions(
+        robot_model.model,
+        data,
+        robot_model.collision_model,
+        collision_data,
+        robot_state.qpos,
+        stop_at_first_collision=not verbose,
+    )
+    if verbose:
+        print_collision_results(
+            robot_model.collision_model, collision_data.collisionResults
+        )
+    return np.any([cr.isCollision() for cr in collision_data.collisionResults])

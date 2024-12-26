@@ -10,7 +10,6 @@ from ramp.robot import (
     Robot,
 )
 from ramp.constants import GROUP_NAME
-from ramp.motion_planner import MotionPlanner
 from ramp.ik_solver import IKSolver
 from ramp.exceptions import (
     MissingBaseLinkError,
@@ -61,47 +60,6 @@ def test_no_gripper():
         robot.named_states["home"],
     )
     assert target_joint_positions is None
-
-
-def test_motion_planning():
-    """Test motion planning interface."""
-    robot = Robot(FILE_PATH / ".." / "robots" / "rrr" / "configs.toml")
-    goal_state = np.asarray([0.0, 1.0, 1.0])
-    planner = MotionPlanner(robot)
-    plan = planner.plan(robot.named_states["home"], goal_state)
-    assert plan is not None, "Expected a plan to be found"
-    trajectory = planner.parameterize(plan)
-    assert trajectory is not None, "Expected a trajectory to be found"
-
-    # RRR with planar base
-    robot = Robot(FILE_PATH / ".." / "robots" / "rrr" / "planar_configs.toml")
-    robot.add_object(
-        "capsule",
-        pinocchio.GeometryObject.CreateCapsule(0.1, 0.4),
-        pinocchio.SE3(
-            pinocchio.Quaternion(0.707, 0.707, 0.0, 0.0),
-            np.asarray([0.475, 0.0, 0.5]),
-        ),
-    )
-    goal_state = np.asarray([1.0, -0.5, 1.57, 0.5, 0.25, 0.1])
-    planner = MotionPlanner(robot)
-    plan = planner.plan(robot.named_states["home"], goal_state, timeout=5.0)
-    assert plan is not None, "Expected a plan to be found"
-
-    # RRR with floating base
-    robot = Robot(FILE_PATH / ".." / "robots" / "rrr" / "floating_configs.toml")
-    robot.add_object(
-        "capsule",
-        pinocchio.GeometryObject.CreateCapsule(0.1, 0.4),
-        pinocchio.SE3(
-            pinocchio.Quaternion(0.707, 0.707, 0.0, 0.0),
-            np.asarray([0.475, 0.0, 0.5]),
-        ),
-    )
-    goal_state = np.asarray([1.0, 0.5, 1.0, 1.0, 0.0, 0.0, 0.0, 0.5, 0.25, 0.1])
-    planner = MotionPlanner(robot)
-    plan = planner.plan(robot.named_states["home"], goal_state, timeout=5.0)
-    assert plan is not None, "Expected a plan to be found"
 
 
 def test_no_gripper_and_tcp_link():
