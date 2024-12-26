@@ -1,5 +1,6 @@
 """Motion planning module using OMPL."""
 
+import functools
 import logging
 import os
 import platform
@@ -22,7 +23,7 @@ from ramp.constants import (
     PINOCCHIO_TRANSLATION_JOINT,
     PINOCCHIO_UNBOUNDED_JOINT,
 )
-from ramp.robot import GroupState, Robot, RobotState, check_collision
+from ramp.robot import Robot, RobotState, check_collision
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(level=os.getenv("LOG_LEVEL", "INFO").upper())
@@ -233,15 +234,11 @@ class MotionPlanner:
     def as_ompl_state(self, robot_state: RobotState) -> ob.State:
         """Convert joint positions to ompl state."""
         state = ob.State(self._space)
-        for i, joint_position in enumerate(
-            robot_state.qpos[
-                self._robot.robot_model[self._group_name].joint_position_indices
-            ],
-        ):
+        for i, joint_position in enumerate(robot_state[self._group_name]):
             state[i] = joint_position
         return state
 
-    def from_ompl_state(self, state: ob.State) -> GroupState:
+    def from_ompl_state(self, state: ob.State) -> list[float]:
         """Convert ompl state to joint positions."""
         joint_positions = []
         for idx, (substate, space) in enumerate(
@@ -282,13 +279,13 @@ class MotionPlanner:
             else:
                 msg = f"Unknown state space: {space}"
                 raise ValueError(msg)
-        return GroupState(self._group_name, joint_positions)
+        return joint_positions
 
     # TODO: Add termination conditions doc/markdown/plannerTerminationConditions.md
     def plan(
         self,
         start_state: RobotState,
-        group_goal_qpos: np.ndarray,
+        group_goal_qpos: np.ndarray | list[float],
         timeout: float = 1.0,
     ) -> list[RobotState] | None:
         """Plan a trajectory from start to goal.
@@ -304,18 +301,18 @@ class MotionPlanner:
         assert len(group_goal_qpos) == len(
             self._robot.robot_model[self._group_name].joint_position_indices,
         )
-        goal_state = RobotState(
-            self._robot.robot_model,
-            GroupState(self._group_name, group_goal_qpos),
-        )
+        goal_state = start_state.clone()
+        goal_state[self._group_name] = group_goal_qpos
         self._setup.clear()
 
-        def is_ompl_state_valid(state):
-            robot_state = start_state.clone(self.from_ompl_state(state))
-            return self.is_state_valid(robot_state)
+        def is_ompl_state_valid(reference_robot_state, state):
+            reference_robot_state[self._group_name] = self.from_ompl_state(state)
+            return self.is_state_valid(reference_robot_state)
 
         self._setup.setStateValidityChecker(
-            ob.StateValidityCheckerFn(is_ompl_state_valid),
+            ob.StateValidityCheckerFn(
+                functools.partial(is_ompl_state_valid, start_state.clone()),
+            ),
         )
         if not self.is_state_valid(start_state):
             LOGGER.error("Start state is invalid - in collision or out of bounds")
@@ -372,8 +369,10 @@ class MotionPlanner:
             LOGGER.warning("Interpolated simplified path fails check!")
 
         solution = []
+        reference_robot_state = start_state.clone()
         for state in simplified_path.getStates():
-            solution.append(start_state.clone(self.from_ompl_state(state)))
+            reference_robot_state[self._group_name] = self.from_ompl_state(state)
+            solution.append(reference_robot_state.clone())
         LOGGER.info(f"Found solution with {len(solution)} waypoints")
         return solution
 
@@ -423,18 +422,12 @@ class MotionPlanner:
             return None
         duration = trajectory.getDuration()
         parameterized_trajectory = []
-        rs = waypoints[0]
         for t in np.append(np.arange(0.0, duration, resample_dt), duration):
-            parameterized_trajectory.append(
-                (
-                    rs.clone(
-                        GroupState(
-                            self._group_name,
-                            trajectory.getPosition(t),
-                            trajectory.getVelocity(t),
-                        ),
-                    ),
-                    t,
-                ),
-            )
+            rs = waypoints[0].clone()
+            rs[self._group_name] = trajectory.getPosition(t)
+            # TODO: Need a utility function for this
+            rs.qvel[
+                self._robot.robot_model[self._group_name].joint_velocity_indices
+            ] = trajectory.getVelocity(t)
+            parameterized_trajectory.append((rs, t))
         return parameterized_trajectory

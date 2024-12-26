@@ -41,9 +41,7 @@ def test_rrr():
     target_joint_positions = ik_solver.solve(target_pose, initial_qpos)
     assert target_joint_positions is not None
 
-    initial_state = RobotState(
-        robot.robot_model, robot.robot_model.named_state(group_name, "home")
-    )
+    initial_state = RobotState.from_named_state(robot.robot_model, group_name, "home")
     # Using differential-ik
     target_joint_positions = robot.differential_ik(
         group_name,
@@ -74,7 +72,7 @@ def test_no_tcp_link():
     assert robot.base_link == "universe"
     assert robot.robot_model[group_name].tcp_link_name is None
     assert robot.robot_model[group_name].joints == ["elbow"]
-    assert robot.robot_model.named_state(group_name, "home").qpos == [0.0]
+    assert robot.robot_model[group_name].named_states["home"] == [0.0]
 
 
 def test_robot():
@@ -116,9 +114,7 @@ def test_ik(robot_name):
     # TODO: Add a loop to check for 100 different poses
     # Use fk to check if the pose is actually same as the input one
     group_name = "arm"
-    initial_state = RobotState(
-        robot.robot_model, robot.robot_model.named_state(group_name, "home")
-    )
+    initial_state = RobotState.from_named_state(robot.robot_model, group_name, "home")
     target_joint_positions = robot.differential_ik(
         group_name,
         [0.2, 0.2, 0.2, 1.0, 0.0, 0.0, 0.0],

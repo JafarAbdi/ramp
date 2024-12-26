@@ -5397,7 +5397,7 @@ packages:
   requires_python: '>=3.9'
 - pypi: .
   name: ramp
-  version: 0.0.post8+g45222e0.d20241226
+  version: 0.0.post12+g7cd8ff5.d20241226
   sha256: 10897590c2df56003a00bad66cd4f0673559f1ed0c979a996a87adb489fddf9f
   requires_dist:
   - meshcat

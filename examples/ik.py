@@ -7,7 +7,7 @@ import pathlib
 
 from rich.logging import RichHandler
 
-from ramp.robot import Robot, RobotState, GroupState
+from ramp.robot import Robot, RobotState
 from ramp.visualizer import Visualizer
 from ramp.ik_solver import IKSolver
 
@@ -36,9 +36,10 @@ class IKDemo:
     def __init__(self, config_name: str):
         self.robot = Robot(pathlib.Path(f"robots/{config_name}/configs.toml"))
         self.visualizer = Visualizer(self.robot)
-        self.initial_state = RobotState(
+        self.initial_state = RobotState.from_named_state(
             self.robot.robot_model,
-            self.robot.robot_model.named_state(GROUP_NAME, "home"),
+            GROUP_NAME,
+            "home",
         )
         self.reset()
 
@@ -79,9 +80,8 @@ class IKDemo:
         if target_joint_positions is None:
             LOGGER.info("IK failed")
         else:
-            robot_state = self.initial_state.clone(
-                GroupState(GROUP_NAME, target_joint_positions)
-            )
+            robot_state = self.initial_state.clone()
+            robot_state[GROUP_NAME] = target_joint_positions
             LOGGER.info(f"IK succeeded: {target_joint_positions}")
             LOGGER.info(
                 f"TCP Pose for target joint positions: {self.robot.get_frame_pose(robot_state, self.robot.robot_model[GROUP_NAME].tcp_link_name)}",

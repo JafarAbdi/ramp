@@ -111,7 +111,7 @@ def joint_ids_to_name_indices(model: pinocchio.Model) -> dict[int, int]:
     return joint_id_to_indices
 
 
-def joint_ids_to_indices(model: pinocchio.Model) -> dict[int, int]:
+def joint_ids_to_indices(model: pinocchio.Model) -> dict[int, list[int]]:
     """Return a mapping from joint ids to joint indices."""
 
     def joint_indices(joint: pinocchio.JointModel):
@@ -178,22 +178,6 @@ def load_mimic_joints(
     )
 
 
-def as_pinocchio_joint_position_continuous(q, joint_index: int | np.ndarray):
-    """Convert continuous joint positions to pinocchio joint positions."""
-    q[joint_index], q[joint_index + 1] = (
-        np.cos(q[joint_index]),
-        np.sin(q[joint_index]),
-    )
-
-
-def from_pinocchio_joint_positions_continuous(
-    q,
-    joint_index: int | np.ndarray,
-):
-    """Convert pinocchio joint positions to continuous joint positions."""
-    q[joint_index] = np.arctan2(q[joint_index + 1], q[joint_index])
-
-
 def load_xacro(file_path: Path, mappings: dict | None = None) -> str:
     """Load a xacro file and render it with the given mappings."""
     if not file_path.exists():
@@ -217,13 +201,6 @@ def load_xacro(file_path: Path, mappings: dict | None = None) -> str:
         subargs=mappings,
         resolve_packages=True,
     ).to_urdf_string()
-
-
-@dataclass(slots=True)
-class GroupState:
-    name: str
-    qpos: np.ndarray
-    qvel: np.ndarray | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -274,10 +251,6 @@ class RobotModel:
     def __getitem__(self, key):
         return self.groups[key]
 
-    def named_state(self, group_name: str, state_name: str) -> GroupState:
-        """Return the named state."""
-        return GroupState(group_name, self.groups[group_name].named_states[state_name])
-
     @property
     def velocity_limits(self) -> list[float]:
         """Return the velocity limits.
@@ -307,22 +280,75 @@ class RobotModel:
         )
 
 
+def as_pinocchio_qpos(
+    robot_model: RobotModel,
+    reference_qpos: np.ndarray,
+    group_name: str,
+    group_qpos: np.ndarray,
+) -> np.ndarray:
+    """Convert joint positions to pinocchio joint positions."""
+    q = np.copy(reference_qpos)
+    q[robot_model[group_name].joint_position_indices] = group_qpos
+
+    apply_pinocchio_mimic_joints(robot_model, q)
+    apply_pinocchio_continuous_joints(robot_model, q)
+    return q
+
+
+def from_pinocchio_qpos_continuous(
+    robot_model: RobotModel,
+    q,
+):
+    """Convert pinocchio joint positions to continuous joint positions."""
+    if robot_model.continuous_joint_indices.size == 0:
+        return
+    q[robot_model.continuous_joint_indices] = np.arctan2(
+        q[robot_model.continuous_joint_indices + 1],
+        q[robot_model.continuous_joint_indices],
+    )
+
+
+def apply_pinocchio_continuous_joints(robot_model: RobotModel, q: np.ndarray):
+    """Convert continuous joint positions to pinocchio joint positions."""
+    if robot_model.continuous_joint_indices.size == 0:
+        return
+    (
+        q[robot_model.continuous_joint_indices],
+        q[robot_model.continuous_joint_indices + 1],
+    ) = (
+        np.cos(q[robot_model.continuous_joint_indices]),
+        np.sin(q[robot_model.continuous_joint_indices]),
+    )
+
+
+def apply_pinocchio_mimic_joints(robot_model: RobotModel, q: np.ndarray):
+    """Apply mimic joints to the joint positions."""
+    if robot_model.mimic_joint_indices.size == 0:
+        return
+    q[robot_model.mimic_joint_indices] = (
+        q[robot_model.mimicked_joint_indices] * robot_model.mimic_joint_multipliers
+        + robot_model.mimic_joint_offsets
+    )
+
+
 class RobotState:
     def __init__(
         self,
         robot_model: RobotModel,
-        qpos: np.ndarray | GroupState | None = None,
+        qpos: np.ndarray | None = None,
         qvel: np.ndarray | None = None,
     ):
         self.robot_model = robot_model
-        self.qpos = pinocchio.neutral(robot_model.model)
-        if qpos is not None:
-            self.qpos = self.as_pinocchio_joint_positions(qpos)
+        self.qpos = pinocchio.neutral(robot_model.model) if qpos is None else qpos
         self.qvel = np.zeros(robot_model.model.nv) if qvel is None else qvel
 
-    # TODO: Should this return GroupState?
     def __getitem__(self, key):
-        return self.qpos[self.robot_model[key].joint_position_indices]
+        qpos = np.copy(self.qpos)
+        from_pinocchio_qpos_continuous(
+            self.robot_model,
+            qpos,
+        )
+        return qpos[self.robot_model[key].joint_position_indices]
 
     def __setitem__(self, key, value):
         assert key in self.robot_model.groups, f"Unknown group: {key}"
@@ -333,86 +359,69 @@ class RobotState:
             )
         ), f"Expected {len(self.robot_model.groups[key].joints)} joint positions, got {len(value)}"
         self.qpos[self.robot_model[key].joint_position_indices] = value
+        apply_pinocchio_mimic_joints(self.robot_model, self.qpos)
+        apply_pinocchio_continuous_joints(self.robot_model, self.qpos)
 
-    def clone(self, group_state: GroupState | None = None):
+    def clone(self):
         """Clone the robot state.
-
-        Args:
-            group_state: The group state to set.
 
         Returns:
             The cloned robot state with the group state set.
         """
-        qpos = self.qpos.copy()
-        if group_state is not None:
-            qpos = self.as_pinocchio_joint_positions(group_state)
-        return RobotState(self.robot_model, qpos)
-
-    # TODO: Update docs
-    # TODO: Maybe rename to as_pinocchio_qpos?
-    # Convert actuated qpos or group actuated qpos to pinocchio qpos
-    def as_pinocchio_joint_positions(
-        self,
-        joint_positions: np.ndarray | GroupState,
-    ) -> np.ndarray:
-        """Convert joint positions to pinocchio joint positions."""
-        if (
-            isinstance(joint_positions, np.ndarray)
-            and len(joint_positions) == self.robot_model.model.nq
-        ):
-            return joint_positions
-        q = self.qpos.copy()
-        if isinstance(joint_positions, GroupState):
-            assert (
-                len(joint_positions.qpos)
-                == len(
-                    self.robot_model[joint_positions.name].joint_position_indices,
-                )
-            ), f"Expected {len(self.robot_model[joint_positions.name].joints)} joint positions, got {len(group_state.qpos)}"
-            q[self.robot_model[joint_positions.name].joint_position_indices] = (
-                joint_positions.qpos
-            )
-        else:
-            # Loop through the groups and set the joint positions
-            start_index = 0
-            for group in self.robot_model.groups.values():
-                q[group.joint_position_indices] = joint_positions[
-                    start_index : start_index + len(group.joint_position_indices)
-                ]
-                start_index += len(group.joint_position_indices)
-
-        if self.robot_model.mimic_joint_indices.size != 0:
-            q[self.robot_model.mimic_joint_indices] = (
-                q[self.robot_model.mimicked_joint_indices]
-                * self.robot_model.mimic_joint_multipliers
-                + self.robot_model.mimic_joint_offsets
-            )
-        if self.robot_model.continuous_joint_indices.size != 0:
-            as_pinocchio_joint_position_continuous(
-                q,
-                self.robot_model.continuous_joint_indices,
-            )
-        return q
+        return RobotState(self.robot_model, np.copy(self.qpos), np.copy(self.qvel))
 
     @property
     def actuated_qpos(self) -> np.ndarray:
         """Return the actuated joint positions."""
-        return self.from_pinocchio_joint_positions(self.qpos)
-
-    def from_pinocchio_joint_positions(self, q: np.ndarray) -> np.ndarray:
-        """Convert pinocchio joint positions to joint positions."""
-        assert len(q) == self.robot_model.model.nq
-        joint_positions = np.copy(q)
-        if self.robot_model.continuous_joint_indices.size != 0:
-            from_pinocchio_joint_positions_continuous(
-                joint_positions,
-                self.robot_model.continuous_joint_indices,
-            )
+        qpos = np.copy(self.qpos)
+        from_pinocchio_qpos_continuous(
+            self.robot_model,
+            qpos,
+        )
         return np.concatenate(
             [
-                joint_positions[group.joint_position_indices]
+                qpos[group.joint_position_indices]
                 for group in self.robot_model.groups.values()
             ],
+        )
+
+    @classmethod
+    def from_actuated_qpos(cls, robot_model: RobotModel, joint_positions: np.ndarray):
+        """Create a robot state from actuated joint positions."""
+        qpos = pinocchio.neutral(robot_model.model)
+        # Loop through the groups and set the joint positions
+        start_index = 0
+        for group in robot_model.groups.values():
+            qpos[group.joint_position_indices] = joint_positions[
+                start_index : start_index + len(group.joint_position_indices)
+            ]
+            start_index += len(group.joint_position_indices)
+        apply_pinocchio_mimic_joints(robot_model, qpos)
+        apply_pinocchio_continuous_joints(robot_model, qpos)
+        return cls(robot_model, qpos)
+
+    @classmethod
+    def from_pinocchio_qpos(cls, robot_model: RobotModel, q: np.ndarray):
+        """Convert pinocchio joint positions to joint positions."""
+        assert len(q) == self.robot_model.model.nq
+        return cls(robot_model, q)
+
+    @classmethod
+    def from_named_state(
+        cls,
+        robot_model: RobotModel,
+        group_name: str,
+        state_name: str,
+    ):
+        """Create a robot state from a named state."""
+        return cls(
+            robot_model,
+            as_pinocchio_qpos(
+                robot_model,
+                pinocchio.neutral(robot_model.model),
+                group_name,
+                robot_model[group_name].named_states[state_name],
+            ),
         )
 
 

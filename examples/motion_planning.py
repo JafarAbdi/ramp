@@ -33,10 +33,9 @@ for robot_path, goal_state in robots:
         pin.GeometryObject.CreateCapsule(0.1, 0.4),
         pin.SE3(pin.Quaternion(0.707, 0.707, 0.0, 0.0), np.asarray([0.475, 0.0, 0.5])),
     )
-    start_state = RobotState(
-        robot.robot_model, robot.robot_model.named_state(group_name, "home")
-    )
+    start_state = RobotState.from_named_state(robot.robot_model, group_name, "home")
     visualize.robot_state(start_state)
+    input("Press Enter to plan a path to the goal state...")
 
     planner = MotionPlanner(robot, group_name)
     if path := planner.plan(start_state, goal_state, timeout=5.0):

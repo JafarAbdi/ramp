@@ -8,7 +8,6 @@ import pinocchio as pin
 from ramp.robot import Robot, RobotState
 from ramp.motion_planner import MotionPlanner
 from ramp.visualizer import Visualizer
-from ramp.hardware_interface import MockHardwareInterface, GroupState
 
 robot = Robot(pathlib.Path(f"robots/unitree_h1/configs.toml"))
 visualize = Visualizer(robot)

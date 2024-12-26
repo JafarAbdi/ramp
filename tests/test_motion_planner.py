@@ -4,7 +4,7 @@ import numpy as np
 import pinocchio
 import pytest
 
-from ramp.robot import Robot, RobotState, GroupState
+from ramp.robot import Robot, RobotState
 from ramp.ik_solver import IKSolver
 from ramp.exceptions import (
     MissingBaseLinkError,
@@ -22,9 +22,7 @@ def test_motion_planning():
     """Test motion planning interface."""
     robot = Robot(FILE_PATH / ".." / "robots" / "rrr" / "configs.toml")
     planner = MotionPlanner(robot, GROUP_NAME)
-    start_state = RobotState(
-        robot.robot_model, robot.robot_model[GROUP_NAME].named_states["home"]
-    )
+    start_state = RobotState.from_named_state(robot.robot_model, GROUP_NAME, "home")
     plan = planner.plan(start_state, [0.0, 1.0, 1.0])
     assert plan is not None, "Expected a plan to be found"
     trajectory = planner.parameterize(plan)
@@ -41,10 +39,7 @@ def test_motion_planning():
         ),
     )
     planner = MotionPlanner(robot, GROUP_NAME)
-    start_state = RobotState(
-        robot.robot_model,
-        robot.robot_model.named_state(GROUP_NAME, "home"),
-    )
+    start_state = RobotState.from_named_state(robot.robot_model, GROUP_NAME, "home")
     plan = planner.plan(start_state, [1.0, -0.5, 1.57, 0.5, 0.25, 0.1], timeout=5.0)
     assert plan is not None, "Expected a plan to be found"
 
@@ -59,9 +54,7 @@ def test_motion_planning():
         ),
     )
     planner = MotionPlanner(robot, GROUP_NAME)
-    start_state = RobotState(
-        robot.robot_model, robot.robot_model[GROUP_NAME].named_states["home"]
-    )
+    start_state = RobotState.from_named_state(robot.robot_model, GROUP_NAME, "home")
     plan = planner.plan(
         start_state, [1.0, 0.5, 1.0, 1.0, 0.0, 0.0, 0.0, 0.5, 0.25, 0.1], timeout=5.0
     )
