@@ -42,6 +42,5 @@ jobs:
           cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
           frozen: true
       - run: pixi run --environment test install-mujoco
-      - run: pixi run --environment test trac-ik-install
       - run: pixi run test
       - run: pixi run -e test test-coverage --color=yes
