@@ -25,8 +25,7 @@ def test_motion_planning():
     start_state = RobotState(
         robot.robot_model, robot.robot_model[GROUP_NAME].named_states["home"]
     )
-    goal_state = RobotState(robot.robot_model, [0.0, 1.0, 1.0])
-    plan = planner.plan(start_state, goal_state)
+    plan = planner.plan(start_state, [0.0, 1.0, 1.0])
     assert plan is not None, "Expected a plan to be found"
     trajectory = planner.parameterize(plan)
     assert trajectory is not None, "Expected a trajectory to be found"
@@ -43,10 +42,10 @@ def test_motion_planning():
     )
     planner = MotionPlanner(robot, GROUP_NAME)
     start_state = RobotState(
-        robot.robot_model, robot.robot_model[GROUP_NAME].named_states["home"]
+        robot.robot_model,
+        robot.robot_model.named_state(GROUP_NAME, "home"),
     )
-    goal_state = RobotState(robot.robot_model, [1.0, -0.5, 1.57, 0.5, 0.25, 0.1])
-    plan = planner.plan(start_state, goal_state, timeout=5.0)
+    plan = planner.plan(start_state, [1.0, -0.5, 1.57, 0.5, 0.25, 0.1], timeout=5.0)
     assert plan is not None, "Expected a plan to be found"
 
     # RRR with floating base
@@ -63,8 +62,7 @@ def test_motion_planning():
     start_state = RobotState(
         robot.robot_model, robot.robot_model[GROUP_NAME].named_states["home"]
     )
-    goal_state = RobotState(
-        robot.robot_model, [1.0, 0.5, 1.0, 1.0, 0.0, 0.0, 0.0, 0.5, 0.25, 0.1]
+    plan = planner.plan(
+        start_state, [1.0, 0.5, 1.0, 1.0, 0.0, 0.0, 0.0, 0.5, 0.25, 0.1], timeout=5.0
     )
-    plan = planner.plan(start_state, goal_state, timeout=5.0)
     assert plan is not None, "Expected a plan to be found"

@@ -287,7 +287,7 @@ class MotionPlanner:
     def plan(
         self,
         start_state: RobotState,
-        goal_state: RobotState,
+        group_goal_qpos: np.ndarray,
         timeout: float = 1.0,
     ) -> list[list[float]] | None:
         """Plan a trajectory from start to goal.
@@ -300,6 +300,13 @@ class MotionPlanner:
         Returns:
             The trajectory as a list of joint positions or None if no solution was found.
         """
+        assert len(group_goal_qpos) == len(
+            self._robot.robot_model[self._group_name].joint_position_indices,
+        )
+        goal_state = RobotState(
+            self._robot.robot_model,
+            GroupState(self._group_name, group_goal_qpos),
+        )
         self._setup.clear()
 
         def is_ompl_state_valid(state):

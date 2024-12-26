@@ -266,6 +266,10 @@ class RobotModel:
     def __getitem__(self, key):
         return self.groups[key]
 
+    def named_state(self, group_name: str, state_name: str) -> np.ndarray:
+        """Return the named state."""
+        return GroupState(group_name, self.groups[group_name].named_states[state_name])
+
     @property
     def velocity_limits(self) -> list[float]:
         """Return the velocity limits.
@@ -728,6 +732,13 @@ class RobotState:
     def __getitem__(self, key):
         return self.qpos[self.robot_model.groups[key].joint_position_indices]
 
+    def __setitem__(self, key, value):
+        assert key in self.robot_model.groups, f"Unknown group: {key}"
+        assert len(value) == len(
+            self.robot_model.groups[key].joint_position_indices,
+        ), f"Expected {len(self.robot_model.groups[key].joints)} joint positions, got {len(value)}"
+        self.qpos[self.robot_model[key].joint_position_indices] = value
+
     def clone(self, group_state: GroupState | None = None):
         """Clone the robot state.
 
@@ -744,11 +755,11 @@ class RobotState:
             ), f"Unknown group: {group_state.name} in {self.robot_model.groups.keys()}"
             assert len(group_state.qpos) == len(
                 self.robot_model.groups[group_state.name].joint_position_indices,
-            ), f"Expected {len(self.robot_model.groups[group_state.name].joint_position_indices)} joint positions, got {len(group_state.qpos)}"
+            ), f"Expected {len(self.robot_model.groups[group_state.name].joints)} joint positions, got {len(group_state.qpos)}"
             qpos[self.robot_model.groups[group_state.name].joint_position_indices] = (
                 group_state.qpos
             )
-        return RobotState(self.robot_model, qpos)
+        return RobotState(self.robot_model, self.from_pinocchio_joint_positions(qpos))
 
     # TODO: Update docs
     # TODO: Maybe rename to as_pinocchio_qpos?
@@ -759,7 +770,7 @@ class RobotState:
         """Convert joint positions to pinocchio joint positions."""
         q = self.qpos.copy()
         if isinstance(joint_positions, GroupState):
-            q[self.groups[joint_positions.name].joint_position_indices] = (
+            q[self.robot_model[joint_positions.name].joint_position_indices] = (
                 joint_positions.qpos
             )
         else:
@@ -784,37 +795,26 @@ class RobotState:
             )
         return q
 
+    @property
     def actuated_qpos(self) -> np.ndarray:
         """Return the actuated joint positions."""
-        qpos = self.qpos.copy()
+        return self.from_pinocchio_joint_positions(self.qpos)
+
+    def from_pinocchio_joint_positions(self, q: np.ndarray) -> np.ndarray:
+        """Convert pinocchio joint positions to joint positions."""
+        assert len(q) == self.robot_model.model.nq
+        joint_positions = np.copy(q)
         if self.robot_model.continuous_joint_indices.size != 0:
             from_pinocchio_joint_positions_continuous(
-                qpos,
+                joint_positions,
                 self.robot_model.continuous_joint_indices,
             )
         return np.concatenate(
             [
-                qpos[group.joint_position_indices]
+                joint_positions[group.joint_position_indices]
                 for group in self.robot_model.groups.values()
             ]
         )
-
-    # # TODO: Rename to numpy()? Or active qpos? Actuated qpos?
-    # def from_pinocchio_joint_positions(self, q: np.ndarray) -> np.ndarray:
-    #     """Convert pinocchio joint positions to joint positions."""
-    #     assert len(q) == self.robot_model.model.nq
-    #     joint_positions = np.copy(q)
-    #     if self.robot_model.continuous_joint_indices.size != 0:
-    #         from_pinocchio_joint_positions_continuous(
-    #             joint_positions,
-    #             self.robot_model.continuous_joint_indices,
-    #         )
-    #     return np.concatenate(
-    #         [
-    #             joint_positions[group.joint_position_indices]
-    #             for group in self.robot_model.groups.values()
-    #         ]
-    #     )
 
 
 def print_collision_results(
