@@ -3,10 +3,9 @@ import pathlib
 import numpy as np
 import pinocchio as pin
 
-from ramp.robot import Robot, RobotState
+from ramp.robot import Robot, RobotState, GroupState
 from ramp.motion_planner import MotionPlanner
 from ramp.visualizer import Visualizer
-from ramp.hardware_interface import MockHardwareInterface, GroupState
 
 FILE_PATH = pathlib.Path(__file__).parent
 robot = Robot(FILE_PATH / ".." / "robots" / "unitree_h1" / "configs.toml")
