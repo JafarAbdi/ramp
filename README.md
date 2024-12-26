@@ -27,13 +27,11 @@ cd ramp
 
 pixi install -a
 pixi run install-mujoco
-pixi run trac-ik-install
 ```
 
 ## Testing the package
 
 ```bash
-pixi run --environment test trac-ik-install
 pixi run test
 ```
 
