@@ -130,6 +130,7 @@ class MotionPlanner:
 
         Args:
             robot: The robot to plan for.
+            group_name: The group to plan for.
             planner: The planner to use.
         """
         self._robot = robot
@@ -199,30 +200,17 @@ class MotionPlanner:
                 self._space.addSubspace(space, 1.0)
                 self.state_spaces.append(ob.STATE_SPACE_SE3)
             else:
-                msg = f"Unknown joint type: '{joint_type}' for joint '{robot.model.names[int(idx)]}'"
+                msg = f"Unknown joint type: '{joint_type}' for joint '{robot.robot_model.model.names[int(idx)]}'"
                 raise ValueError(msg)
 
-        # if robot.groups[GROUP_NAME].tcp_link_name is not None:
-        #
-        #     def pose_fn(state):
-        #         return robot.get_frame_pose(
-        #             self.from_ompl_state(state),
-        #             robot.groups[GROUP_NAME].tcp_link_name,
-        #         ).np
-        #
-        #     self._space.registerDefaultProjection(
-        #         ProjectionEvaluatorLinkPose(self._space, pose_fn),
-        #     )
-
         self._setup = og.SimpleSetup(self._space)
-        LOGGER.debug(self._setup.getStateSpace().settings())
 
         if planner is not None:
             self._setup.setPlanner(self._get_planner(planner))
 
     def _get_planner(self, planner):
         try:
-            return eval(  # noqa: S307, PGH001
+            return eval(  # noqa: S307
                 f"og.{planner}(self._setup.getSpaceInformation())",
             )
         except AttributeError:
@@ -291,8 +279,8 @@ class MotionPlanner:
         """Plan a trajectory from start to goal.
 
         Args:
-            start_joint_positions: The start joint positions.
-            goal_joint_positions: The goal joint positions.
+            start_state: The start robot state.
+            group_goal_qpos: The goal joint positions.
             timeout: Timeout for planner
 
         Returns:
@@ -314,6 +302,22 @@ class MotionPlanner:
                 functools.partial(is_ompl_state_valid, start_state.clone()),
             ),
         )
+
+        # TODO: Fix
+        if self._robot.robot_model[self._group_name].tcp_link_name is not None:
+
+            def pose_fn(state):
+                return self._robot.get_frame_pose(
+                    self.from_ompl_state(state),
+                    self._robot.robot_model[self._group_name].tcp_link_name,
+                ).np
+
+            self._space.registerDefaultProjection(
+                ProjectionEvaluatorLinkPose(self._space, pose_fn),
+            )
+
+        LOGGER.debug(self._setup.getStateSpace().settings())
+
         if not self.is_state_valid(start_state):
             LOGGER.error("Start state is invalid - in collision or out of bounds")
             return None
@@ -380,7 +384,7 @@ class MotionPlanner:
         """Check if the state is valid, i.e. not in collision or out of bounds.
 
         Args:
-            state: The state to check.
+            robot_state: The robot state to check.
 
         Returns:
             True if the state is valid, False otherwise.

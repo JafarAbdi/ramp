@@ -1,26 +1,38 @@
+"""A script to print information about a model."""
+
+import logging
 import pathlib
 import sys
 
 import pinocchio
+from rich.logging import RichHandler
+
+logging.basicConfig(
+    level="NOTSET",
+    format="%(message)s",
+    datefmt="[%X]",
+    handlers=[RichHandler()],
+)
+LOGGER = logging.getLogger(__name__)
 
 
-# Why external/mujoco_menagerie/unitree_g1/g1.xml is failing?
 def main():
+    """Main function."""
     if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} <model_filename>")
+        LOGGER.error(f"Usage: {sys.argv[0]} <model_filename>")
         sys.exit(1)
 
     model_filename = pathlib.Path(sys.argv[1])
 
     if not model_filename.exists():
-        print(f"Model file {model_filename} does not exist")
+        LOGGER.error(f"Model file {model_filename} does not exist")
         sys.exit(1)
 
     if model_filename.suffix != ".xml":
-        print(f"Only mjcf files are supported! Input file {model_filename}")
+        LOGGER.error(f"Only mjcf files are supported! Input file {model_filename}")
         sys.exit(1)
 
-    print(f"Loading model from {model_filename}")
+    LOGGER.info(f"Loading model from {model_filename}")
     models: tuple[pinocchio.Model, pinocchio.Model, pinocchio.Model] = (
         pinocchio.shortcuts.buildModelsFromMJCF(
             model_filename,
@@ -28,8 +40,8 @@ def main():
         )
     )
     model, visual_model, collision_model = models
-    print(f"Joints: {[name for name in model.names]}")
-    print(f"Frames: {[frame.name for frame in model.frames]}")
+    LOGGER.info(f"Joints: {list(model.names)}")
+    LOGGER.info(f"Frames: {[frame.name for frame in model.frames]}")
 
 
 if __name__ == "__main__":

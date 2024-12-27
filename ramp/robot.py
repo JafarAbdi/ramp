@@ -145,6 +145,15 @@ def load_mimic_joints(
     robot_description: Path,
     model: pinocchio.Model,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Get the mimic joints indices, multipliers, offsets and mimicked joint indices.
+
+    Args:
+        robot_description: The robot description file path
+        model: The pinocchio model
+
+    Returns:
+        The mimic joint indices, multipliers, offsets and mimicked joint indices.
+    """
     if robot_description.suffix != ".urdf":
         return np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([])
     with filter_urdf_parser_stderr():
@@ -205,6 +214,8 @@ def load_xacro(file_path: Path, mappings: dict | None = None) -> str:
 
 @dataclass(frozen=True, slots=True)
 class GroupModel:
+    """A class to represent a group of joints."""
+
     joints: list[str]
     joint_indices: np.ndarray
     joint_position_indices: np.ndarray
@@ -215,6 +226,8 @@ class GroupModel:
 
 @dataclass(frozen=True, slots=True)
 class RobotModel:
+    """A class to represent a robot model."""
+
     model_filename: InitVar[Path]
     model: pinocchio.Model
     collision_model: pinocchio.GeometryModel
@@ -228,6 +241,7 @@ class RobotModel:
     continuous_joint_indices: np.ndarray = field(init=False)
 
     def __post_init__(self, model_filename):
+        """Initialize the robot model."""
         object.__setattr__(
             self,
             "continuous_joint_indices",
@@ -249,7 +263,34 @@ class RobotModel:
         object.__setattr__(self, "joint_names", joint_names)
 
     def __getitem__(self, key):
+        """Get a group by name."""
         return self.groups[key]
+
+    @property
+    def position_limits(self) -> list[tuple[float, float]]:
+        """Return the joint limits.
+
+        Returns:
+            List of tuples of (lower, upper) joint limits.
+        """
+        # TODO: How to handle continuous joints?
+        # https://github.com/stack-of-tasks/pinocchio/issues/794
+        # https://github.com/stack-of-tasks/pinocchio/issues/777
+        joint_limits = []
+        for group in self.groups.values():
+            for actuated_joint_index in group.joint_position_indices:
+                joint = self.model.joints[int(actuated_joint_index)]
+                joint_limits.append(
+                    (
+                        self.model.lowerPositionLimit[
+                            actuated_joint_index : actuated_joint_index + joint.nq
+                        ],
+                        self.model.upperPositionLimit[
+                            actuated_joint_index : actuated_joint_index + joint.nq
+                        ],
+                    ),
+                )
+        return joint_limits
 
     @property
     def velocity_limits(self) -> list[float]:
@@ -332,17 +373,27 @@ def apply_pinocchio_mimic_joints(robot_model: RobotModel, q: np.ndarray):
 
 
 class RobotState:
+    """A class to represent the robot state."""
+
     def __init__(
         self,
         robot_model: RobotModel,
         qpos: np.ndarray | None = None,
         qvel: np.ndarray | None = None,
     ):
+        """Initialize the robot state.
+
+        Args:
+            robot_model: The robot model to use for the state representation
+            qpos: The joint positions. Initialized to the neutral position if None
+            qvel: The joint velocities. Initialized to zeros if None
+        """
         self.robot_model = robot_model
         self.qpos = pinocchio.neutral(robot_model.model) if qpos is None else qpos
         self.qvel = np.zeros(robot_model.model.nv) if qvel is None else qvel
 
     def __getitem__(self, key):
+        """Get the actuated joint positions for a group."""
         qpos = np.copy(self.qpos)
         from_pinocchio_qpos_continuous(
             self.robot_model,
@@ -351,23 +402,19 @@ class RobotState:
         return qpos[self.robot_model[key].joint_position_indices]
 
     def __setitem__(self, key, value):
-        assert key in self.robot_model.groups, f"Unknown group: {key}"
+        """Set the actuated joint positions for a group."""
         assert (
             len(value)
             == len(
                 self.robot_model.groups[key].joint_position_indices,
             )
-        ), f"Expected {len(self.robot_model.groups[key].joints)} joint positions, got {len(value)}"
+        ), f"Expected {len(self.robot_model[key].joints)} joint positions, got {len(value)}"
         self.qpos[self.robot_model[key].joint_position_indices] = value
         apply_pinocchio_mimic_joints(self.robot_model, self.qpos)
         apply_pinocchio_continuous_joints(self.robot_model, self.qpos)
 
     def clone(self):
-        """Clone the robot state.
-
-        Returns:
-            The cloned robot state with the group state set.
-        """
+        """Clone the robot state."""
         return RobotState(self.robot_model, np.copy(self.qpos), np.copy(self.qvel))
 
     @property
@@ -403,7 +450,7 @@ class RobotState:
     @classmethod
     def from_pinocchio_qpos(cls, robot_model: RobotModel, q: np.ndarray):
         """Convert pinocchio joint positions to joint positions."""
-        assert len(q) == self.robot_model.model.nq
+        assert len(q) == robot_model.model.nq
         return cls(robot_model, q)
 
     @classmethod
@@ -477,6 +524,7 @@ class Robot:
 
         groups = self._make_groups(model, configs)
 
+        # TODO: Move to RobotModel
         joint_names = []
         for group in groups.values():
             joint_names.extend(group.joints)
@@ -633,7 +681,6 @@ class Robot:
             actuated_joint_velocity_indices = []
             for joint_name in joints:
                 joint_id = model.getJointId(joint_name)
-                joint = model.joints[joint_id]
                 actuated_joint_indices.append(joint_id_to_name_indices[joint_id])
                 actuated_joint_position_indices.extend(joint_id_to_indices[joint_id])
                 actuated_joint_velocity_indices.append(
@@ -661,6 +708,7 @@ class Robot:
             )
         return groups
 
+    # TODO: Move to RobotState
     def get_frame_pose(
         self,
         robot_state: RobotState,
@@ -682,6 +730,7 @@ class Robot:
                 self.robot_model.model.frames,
             ) from index_error
 
+    # TODO: Move to a free function?
     def jacobian(
         self,
         robot_state: RobotState,
@@ -691,7 +740,7 @@ class Robot:
         """Calculate the Jacobian of a frame.
 
         Args:
-            joint_positions: The joint positions
+            robot_state: The robot state to calculate the Jacobian
             target_frame_name: The target frame name
             reference_frame: The reference frame
 
@@ -707,6 +756,7 @@ class Robot:
             reference_frame,
         )
 
+    # TODO: Move to a free function? Or RobotState?
     def differential_ik(
         self,
         group_name: str,
@@ -717,6 +767,7 @@ class Robot:
         """Compute the inverse kinematics of the robot for a given target pose.
 
         Args:
+            group_name: The group name to compute the IK for
             target_pose: The target pose [x, y, z, qx, qy, qz, qw] or 4x4 homogeneous transformation matrix
             initial_configuration: The initial configuration
             iteration_callback: Callback function after each iteration
@@ -779,31 +830,6 @@ class Robot:
             number_of_iterations += 1
         return None
 
-    @property
-    def position_limits(self) -> list[tuple[float, float]]:
-        """Return the joint limits.
-
-        Returns:
-            List of tuples of (lower, upper) joint limits.
-        """
-        # TODO: How to handle continuous joints?
-        # https://github.com/stack-of-tasks/pinocchio/issues/794
-        # https://github.com/stack-of-tasks/pinocchio/issues/777
-        joint_limits = []
-        for actuated_joint_index in self.actuated_joint_indices:
-            joint = self.model.joints[int(actuated_joint_index)]
-            joint_limits.append(
-                (
-                    self.model.lowerPositionLimit[
-                        actuated_joint_index : actuated_joint_index + joint.nq
-                    ],
-                    self.model.upperPositionLimit[
-                        actuated_joint_index : actuated_joint_index + joint.nq
-                    ],
-                ),
-            )
-        return joint_limits
-
 
 # TODO: Maybe delete and combine with Robot class?
 # Prefix with c for CasADi
@@ -850,6 +876,12 @@ def print_collision_results(
     collision_model: pinocchio.GeometryModel,
     collision_results,
 ):
+    """Print the collision results.
+
+    Args:
+        collision_model: The collision model
+        collision_results: The collision results
+    """
     for k in range(len(collision_model.collisionPairs)):
         cr = collision_results[k]
         cp = collision_model.collisionPairs[k]
@@ -864,7 +896,7 @@ def check_collision(robot_state: RobotState, *, verbose=False):
     """Check if the robot is in collision with the given joint positions.
 
     Args:
-        joint_positions: Joint positions of the robot.
+        robot_state: The robot state to check for collision
         verbose: Whether to print the collision results.
 
     Returns:

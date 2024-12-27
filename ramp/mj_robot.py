@@ -13,6 +13,8 @@ from ramp.exceptions import MissingJointError
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(level=os.getenv("LOG_LEVEL", "INFO").upper())
 
+GROUP_NAME = "arm"
+
 
 # Inherit from mujoco interface??
 class MjRobot:

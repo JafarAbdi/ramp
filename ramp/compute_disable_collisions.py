@@ -1,11 +1,30 @@
+"""Compute the disable collisions for a given model."""
+
+import logging
 import pathlib
 import sys
 
 import pinocchio
+from rich.logging import RichHandler
+
+logging.basicConfig(
+    level="NOTSET",
+    format="%(message)s",
+    datefmt="[%X]",
+    handlers=[RichHandler()],
+)
+LOGGER = logging.getLogger(__name__)
 
 
 class ComputeDisableCollisions:
+    """A class to compute the disable collisions for a model."""
+
     def __init__(self, model_filename):
+        """Initialize the class.
+
+        Args:
+            model_filename: The model filename.
+        """
         models: tuple[
             pinocchio.Model,
             pinocchio.GeometryModel,
@@ -20,9 +39,16 @@ class ComputeDisableCollisions:
         self.collision_model.addAllCollisionPairs()
 
     def check_collision(self, qpos):
+        """Check the collision for a given configuration.
+
+        Args:
+            qpos: The configuration.
+
+        Returns:
+            The collision pairs.
+        """
         data = self.model.createData()
         collision_data = self.collision_model.createData()
-        # print(collision_data.activeCollisionPairs)
         pinocchio.computeCollisions(
             self.model,
             data,
@@ -47,21 +73,22 @@ class ComputeDisableCollisions:
 
 
 def main():
+    """Main function."""
     if len(sys.argv) != 2:
-        print(f"Usage: {sys.argv[0]} <model_filename>")
+        LOGGER.error(f"Usage: {sys.argv[0]} <model_filename>")
         sys.exit(1)
 
     model_filename = pathlib.Path(sys.argv[1])
 
     if not model_filename.exists():
-        print(f"Model file {model_filename} does not exist")
+        LOGGER.error(f"Model file {model_filename} does not exist")
         sys.exit(1)
 
     if model_filename.suffix != ".xml":
-        print(f"Only mjcf files are supported! Input file {model_filename}")
+        LOGGER.error(f"Only mjcf files are supported! Input file {model_filename}")
         sys.exit(1)
 
-    print(f"Loading model from {model_filename}")
+    LOGGER.info(f"Loading model from {model_filename}")
     compute_disable_collisions = ComputeDisableCollisions(model_filename)
 
     # DISABLE "DEFAULT" COLLISIONS
@@ -75,12 +102,12 @@ def main():
 </robot>
 """
     disable_collisions = []
-    for first, second in default_pairs.keys():
+    for first, second in default_pairs:
         disable_collisions.append(
             f'<disable_collisions link1="{first}" link2="{second}" reason="Default"/>',
         )
-    print("\n".join(disable_collisions))
-    print(
+    LOGGER.info("\n".join(disable_collisions))
+    LOGGER.info(
         f"Number of collision pairs before removal: {len(compute_disable_collisions.collision_model.collisionPairs)}",
     )
     pinocchio.removeCollisionPairsFromXML(
@@ -91,9 +118,9 @@ def main():
     )
 
     # TODO: Why this is not working???
-    # for pair in default_pairs.values():
-    #     compute_disable_collisions.collision_model.removeCollisionPair(pair)
-    print(
+    # > for pair in default_pairs.values():
+    # >   compute_disable_collisions.collision_model.removeCollisionPair(pair)
+    LOGGER.info(
         f"Number of collision pairs after removal: {len(compute_disable_collisions.collision_model.collisionPairs)}",
     )
 
@@ -101,7 +128,7 @@ def main():
     # "ALWAYS" IN COLLISION: Compute the links that are always in collision
     # "NEVER" IN COLLISION: Get the pairs of links that are never in collision
 
-    print("Done!")
+    LOGGER.info("Done!")
 
 
 if __name__ == "__main__":
