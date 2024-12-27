@@ -269,6 +269,36 @@ class MotionPlanner:
                 raise ValueError(msg)
         return joint_positions
 
+    def _setup_state_validity_checker(self, reference_state: RobotState):
+        """Set the state validity checker."""
+
+        def is_ompl_state_valid(reference_robot_state, state):
+            reference_robot_state[self._group_name] = self.from_ompl_state(state)
+            return self.is_state_valid(reference_robot_state)
+
+        self._setup.setStateValidityChecker(
+            ob.StateValidityCheckerFn(
+                functools.partial(is_ompl_state_valid, reference_state.clone()),
+            ),
+        )
+
+    def _setup_projection_evaluator(self, reference_state: RobotState):
+        """Set the projection evaluator."""
+        if self._robot_model[self._group_name].tcp_link_name is not None:
+
+            def pose_fn(reference_robot_state, state):
+                reference_robot_state[self._group_name] = self.from_ompl_state(state)
+                return reference_robot_state.get_frame_pose(
+                    self._robot_model[self._group_name].tcp_link_name,
+                ).np
+
+            self._space.registerDefaultProjection(
+                ProjectionEvaluatorLinkPose(
+                    self._space,
+                    functools.partial(pose_fn, reference_state.clone()),
+                ),
+            )
+
     # TODO: Add termination conditions doc/markdown/plannerTerminationConditions.md
     def plan(
         self,
@@ -292,31 +322,8 @@ class MotionPlanner:
         goal_state = start_state.clone()
         goal_state[self._group_name] = group_goal_qpos
         self._setup.clear()
-
-        def is_ompl_state_valid(reference_robot_state, state):
-            reference_robot_state[self._group_name] = self.from_ompl_state(state)
-            return self.is_state_valid(reference_robot_state)
-
-        self._setup.setStateValidityChecker(
-            ob.StateValidityCheckerFn(
-                functools.partial(is_ompl_state_valid, start_state.clone()),
-            ),
-        )
-
-        if self._robot_model[self._group_name].tcp_link_name is not None:
-
-            def pose_fn(reference_robot_state, state):
-                reference_robot_state[self._group_name] = self.from_ompl_state(state)
-                return reference_robot_state.get_frame_pose(
-                    self._robot_model[self._group_name].tcp_link_name,
-                ).np
-
-            self._space.registerDefaultProjection(
-                ProjectionEvaluatorLinkPose(
-                    self._space,
-                    functools.partial(pose_fn, start_state.clone()),
-                ),
-            )
+        self._setup_state_validity_checker(start_state)
+        self._setup_projection_evaluator(start_state)
 
         LOGGER.debug(self._setup.getStateSpace().settings())
 
