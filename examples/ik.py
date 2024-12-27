@@ -7,7 +7,7 @@ import pathlib
 
 from rich.logging import RichHandler
 
-from ramp.robot import Robot, RobotState
+from ramp.robot import load_robot_model, RobotState
 from ramp.visualizer import Visualizer
 from ramp.ik_solver import IKSolver
 
@@ -32,12 +32,21 @@ LOGGER = logging.getLogger(__name__)
 GROUP_NAME = "arm"
 
 
+class FakeVisualizer:
+    def robot_state(self, robot_state):
+        pass
+
+
 class IKDemo:
-    def __init__(self, config_name: str):
-        self.robot = Robot(pathlib.Path(f"robots/{config_name}/configs.toml"))
-        self.visualizer = Visualizer(self.robot)
+    def __init__(self, config_name: str, visualize: bool):
+        self.robot_model = load_robot_model(
+            pathlib.Path(f"robots/{config_name}/configs.toml")
+        )
+        self.visualizer = (
+            Visualizer(self.robot_model) if visualize else FakeVisualizer()
+        )
         self.initial_state = RobotState.from_named_state(
-            self.robot.robot_model,
+            self.robot_model,
             GROUP_NAME,
             "home",
         )
@@ -48,31 +57,30 @@ class IKDemo:
         self.visualizer.robot_state(robot_state)
 
     def reset(self):
-        self.visualizer.robot_state(self.initial_state)
+        self.visualize(self.initial_state)
 
     def run(self):
         target_pose = [0.4, 0.0, 0.2, 0.0, 1.0, 0.0, 0.0]
         input("Press Enter to start IK using differential_ik solver")
-        robot_state = self.robot.differential_ik(
+        robot_state = self.initial_state.clone()
+        if not robot_state.differential_ik(
             GROUP_NAME,
             target_pose,
-            self.initial_state,
             iteration_callback=self.visualize,
-        )
-        if robot_state is None:
+        ):
             LOGGER.info("IK failed")
         else:
             LOGGER.info(f"IK succeeded: {robot_state}")
             LOGGER.info(
-                f"TCP Pose for target joint positions: {robot_state.get_frame_pose(self.robot.robot_model[GROUP_NAME].tcp_link_name)}",
+                f"TCP Pose for target joint positions: {robot_state.get_frame_pose(self.robot_model[GROUP_NAME].tcp_link_name)}",
             )
 
         input("Press Enter to start IK using trac-ik solver")
         self.reset()
         ik_solver = IKSolver(
-            self.robot.model_filename,
-            self.robot.base_link,
-            self.robot.robot_model[GROUP_NAME].tcp_link_name,
+            self.robot_model.model_filename,
+            self.robot_model.base_link,
+            self.robot_model[GROUP_NAME].tcp_link_name,
         )
         target_joint_positions = ik_solver.solve(
             target_pose, self.initial_state.actuated_qpos
@@ -84,7 +92,7 @@ class IKDemo:
             robot_state[GROUP_NAME] = target_joint_positions
             LOGGER.info(f"IK succeeded: {target_joint_positions}")
             LOGGER.info(
-                f"TCP Pose for target joint positions: {robot_state.get_frame_pose(self.robot.robot_model[GROUP_NAME].tcp_link_name)}",
+                f"TCP Pose for target joint positions: {robot_state.get_frame_pose(self.robot_model[GROUP_NAME].tcp_link_name)}",
             )
             self.visualize(robot_state)
 
@@ -94,7 +102,7 @@ def main():
     for config in configs:
         LOGGER.info(f"Running IK for {config}")
         input(f"Press Enter to start {config} IK")
-        demo = IKDemo(config)
+        demo = IKDemo(config, len(sys.argv) > 1 and sys.argv[1] == "visualize")
         demo.run()
 
 

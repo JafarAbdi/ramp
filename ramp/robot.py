@@ -228,12 +228,13 @@ class GroupModel:
 class RobotModel:
     """A class to represent a robot model."""
 
-    model_filename: InitVar[Path]
-    joint_acceleration_limits: InitVar[dict[str, float]]
+    model_filename: Path
+    base_link: str
     model: pinocchio.Model
     collision_model: pinocchio.GeometryModel
     visual_model: pinocchio.GeometryModel
     groups: dict[str, GroupModel]
+    joint_acceleration_limits: InitVar[dict[str, float]]
     acceleration_limits: np.ndarray = field(init=False)
     joint_names: list[str] = field(init=False)
     mimic_joint_indices: np.ndarray = field(init=False)
@@ -242,7 +243,7 @@ class RobotModel:
     mimicked_joint_indices: np.ndarray = field(init=False)
     continuous_joint_indices: np.ndarray = field(init=False)
 
-    def __post_init__(self, model_filename, joint_acceleration_limits):
+    def __post_init__(self, joint_acceleration_limits):
         """Initialize the robot model."""
         object.__setattr__(
             self,
@@ -254,7 +255,7 @@ class RobotModel:
             mimic_joint_multipliers,
             mimic_joint_offsets,
             mimicked_joint_indices,
-        ) = load_mimic_joints(model_filename, self.model)
+        ) = load_mimic_joints(self.model_filename, self.model)
         object.__setattr__(self, "mimic_joint_indices", mimic_joint_indices)
         object.__setattr__(self, "mimic_joint_multipliers", mimic_joint_multipliers)
         object.__setattr__(self, "mimic_joint_offsets", mimic_joint_offsets)
@@ -363,6 +364,21 @@ def from_pinocchio_qpos_continuous(
     )
 
 
+def get_converted_qpos(robot_model: RobotModel, qpos: np.ndarray) -> np.ndarray:
+    """Get a copy of joint positions converted from Pinocchio's internal representation.
+
+    Args:
+        robot_model: The robot model to use for the conversion
+        qpos: The joint positions to convert
+
+    Returns:
+        Converted joint positions with continuous joint handling
+    """
+    qpos = np.copy(qpos)
+    from_pinocchio_qpos_continuous(robot_model, qpos)
+    return qpos
+
+
 def apply_pinocchio_continuous_joints(robot_model: RobotModel, q: np.ndarray):
     """Convert continuous joint positions to pinocchio joint positions."""
     if robot_model.continuous_joint_indices.size == 0:
@@ -386,6 +402,147 @@ def apply_pinocchio_mimic_joints(robot_model: RobotModel, q: np.ndarray):
     )
 
 
+def _get_robot_description_path(robot_description: str) -> Path:
+    """Get the robot description path.
+
+    Args:
+        robot_description: The robot description path or name
+
+    Returns:
+        The robot description path
+    """
+    # Suppress git logs
+    logging.getLogger("git").setLevel(logging.INFO)
+    if robot_description.startswith(ROBOT_DESCRIPTION_PREFIX):
+        robot_description_name = robot_description[len(ROBOT_DESCRIPTION_PREFIX) :]
+        try:
+            robot_description_module = importlib.import_module(
+                f"robot_descriptions.{robot_description_name}",
+            )
+        except (ImportError, AttributeError) as import_error:
+            raise RobotDescriptionNotFoundError(
+                robot_description_name,
+            ) from import_error
+        if MUJOCO_DESCRIPTION_VARIANT in robot_description_name:
+            return Path(robot_description_module.MJCF_PATH)
+        return Path(robot_description_module.URDF_PATH)
+    return Path(robot_description)
+
+
+def _load_xacro(
+    robot_description_path: Path,
+    mappings: dict,
+) -> tuple[
+    Path,
+    tuple[pinocchio.Model, pinocchio.GeometryModel, pinocchio.GeometryModel],
+]:
+    """Load the model/collision & visual models from an xacro file.
+
+    Args:
+        robot_description_path: Path to the robot description file
+        mappings: Mappings for the xacro file
+    Returns:
+        The robot description string from the xacro file
+    """
+    robot_description = load_xacro(
+        robot_description_path,
+        mappings,
+    )
+    # Loading Pinocchio model
+    with NamedTemporaryFile(
+        mode="w",
+        prefix="pinocchio_model_",
+        suffix=".urdf",
+        delete=False,
+    ) as parsed_file:
+        parsed_file_path = parsed_file.name
+        parsed_file.write(robot_description)
+
+    return (Path(parsed_file_path), pinocchio.buildModelsFromUrdf(parsed_file_path))
+
+
+def _load_models(
+    robot_description_path: Path,
+    mappings: dict,
+) -> tuple[
+    Path,
+    tuple[pinocchio.Model, pinocchio.GeometryModel, pinocchio.GeometryModel],
+]:
+    """Load the model/collision & visual models.
+
+    Args:
+        robot_description_path: Path to the robot description file
+        mappings: Mappings for the xacro file
+    """
+    match robot_description_path.suffix:
+        case ".xacro" | ".urdf":
+            return _load_xacro(robot_description_path, mappings)
+        case ".xml":
+            return (
+                robot_description_path,
+                pinocchio.shortcuts.buildModelsFromMJCF(
+                    str(robot_description_path),
+                    verbose=True,
+                ),
+            )
+        case _:
+            msg = f"Unknown robot description file type: {robot_description_path}"
+            raise ValueError(msg)
+
+
+def _make_groups(model: pinocchio.Model, configs):
+    groups = {}
+    joint_id_to_indices = joint_ids_to_indices(model)
+    joint_id_to_velocity_indices = joint_ids_to_velocity_indices(model)
+    joint_id_to_name_indices = joint_ids_to_name_indices(model)
+    for group_name, group_config in configs["group"].items():
+        joints = group_config["joints"]
+        tcp_link_name = group_config.get("tcp_link_name")
+        link_names = [frame.name for frame in model.frames]
+        if tcp_link_name is not None:
+            assert (
+                tcp_link_name in link_names
+            ), f"Group {group_name} TCP link '{tcp_link_name}' not in link names: {link_names}"
+        for joint_name in joints:
+            if joint_name not in model.names:
+                msg = f"Joint '{joint_name}' for group '{group_name}' not in model joints: {list(model.names)}"
+                raise MissingJointError(
+                    msg,
+                )
+        # TODO: Extend the comment about joint indices != joint ids
+        actuated_joint_indices = []
+        actuated_joint_position_indices = []
+        actuated_joint_velocity_indices = []
+        for joint_name in joints:
+            joint_id = model.getJointId(joint_name)
+            actuated_joint_indices.append(joint_id_to_name_indices[joint_id])
+            actuated_joint_position_indices.extend(joint_id_to_indices[joint_id])
+            actuated_joint_velocity_indices.append(
+                joint_id_to_velocity_indices[joint_id],
+            )
+        named_states = {}
+        for state_name, state_config in group_config.get(
+            "named_states",
+            {},
+        ).items():
+            assert (
+                len(state_config)
+                == len(
+                    actuated_joint_position_indices,
+                )
+            ), f"Named state '{state_name}' has {len(state_config)} joint positions, expected {len(actuated_joint_position_indices)} for {joints}"
+            named_states[state_name] = np.asarray(state_config)
+        groups[group_name] = GroupModel(
+            joints=joints,
+            joint_indices=np.asarray(actuated_joint_indices),
+            joint_position_indices=np.asarray(actuated_joint_position_indices),
+            joint_velocity_indices=np.asarray(actuated_joint_velocity_indices),
+            named_states=named_states,
+            tcp_link_name=tcp_link_name,
+        )
+    return groups
+
+
 class RobotState:
     """A class to represent the robot state."""
 
@@ -402,17 +559,15 @@ class RobotState:
             qpos: The joint positions. Initialized to the neutral position if None
             qvel: The joint velocities. Initialized to zeros if None
         """
+        assert qpos is None or len(qpos) == robot_model.model.nq
         self.robot_model = robot_model
         self.qpos = pinocchio.neutral(robot_model.model) if qpos is None else qpos
         self.qvel = np.zeros(robot_model.model.nv) if qvel is None else qvel
+        self.geometry_objects = {}
 
     def __getitem__(self, key):
         """Get the actuated joint positions for a group."""
-        qpos = np.copy(self.qpos)
-        from_pinocchio_qpos_continuous(
-            self.robot_model,
-            qpos,
-        )
+        qpos = get_converted_qpos(self.robot_model, self.qpos)
         return qpos[self.robot_model[key].joint_position_indices]
 
     def __setitem__(self, key, value):
@@ -429,16 +584,18 @@ class RobotState:
 
     def clone(self):
         """Clone the robot state."""
-        return RobotState(self.robot_model, np.copy(self.qpos), np.copy(self.qvel))
+        robot_state = RobotState(
+            self.robot_model,
+            np.copy(self.qpos),
+            np.copy(self.qvel),
+        )
+        robot_state.geometry_objects = self.geometry_objects.copy()
+        return robot_state
 
     @property
     def actuated_qpos(self) -> np.ndarray:
         """Return the actuated joint positions."""
-        qpos = np.copy(self.qpos)
-        from_pinocchio_qpos_continuous(
-            self.robot_model,
-            qpos,
-        )
+        qpos = get_converted_qpos(self.robot_model, self.qpos)
         return np.concatenate(
             [
                 qpos[group.joint_position_indices]
@@ -505,235 +662,14 @@ class RobotState:
                 self.robot_model.model.frames,
             ) from index_error
 
-
-class Robot:
-    """Robot base class."""
-
-    def __init__(
-        self,
-        config_path: Path,
-    ) -> None:
-        """Init.
-
-        Args:
-            config_path: Path to the config file configs.toml
-        """
-        if not config_path.exists():
-            msg = f"Config file does not exist: {config_path}"
-            raise FileNotFoundError(msg)
-        configs = toml.load(config_path)
-
-        mappings = configs["robot"].get("mappings", {})
-        model, collision_model, visual_model = self._load_models(
-            config_path.parent
-            / self._get_robot_description_path(
-                configs["robot"]["description"],
-            ),
-            mappings=mappings,
-        )
-
-        collision_model.addAllCollisionPairs()
-        self._geometry_objects = {}
-        verbose = LOGGER.level == logging.DEBUG
-        if srdf_path := configs["robot"].get("disable_collisions"):
-            pinocchio.removeCollisionPairsFromXML(
-                model,
-                collision_model,
-                load_xacro(
-                    config_path.parent / srdf_path,
-                    mappings=mappings,
-                ),
-                verbose=verbose,
-            )
-        if verbose:
-            pretty.pprint(configs)
-
-        self.link_names = [frame.name for frame in model.frames]
-        self.base_link = configs["robot"]["base_link"]
-        if self.base_link not in self.link_names:
-            msg = f"Base link '{self.base_link}' not in link names: {self.link_names}"
-            raise MissingBaseLinkError(
-                msg,
-            )
-
-        self.robot_model = RobotModel(
-            self.model_filename,
-            configs["acceleration_limits"],
-            model,
-            collision_model,
-            visual_model,
-            self._make_groups(model, configs),
-        )
-
-    def _get_robot_description_path(self, robot_description: str) -> Path:
-        """Get the robot description path.
-
-        Args:
-            robot_description: The robot description path or name
-
-        Returns:
-            The robot description path
-        """
-        # Suppress git logs
-        logging.getLogger("git").setLevel(logging.INFO)
-        if robot_description.startswith(ROBOT_DESCRIPTION_PREFIX):
-            robot_description_name = robot_description[len(ROBOT_DESCRIPTION_PREFIX) :]
-            try:
-                robot_description_module = importlib.import_module(
-                    f"robot_descriptions.{robot_description_name}",
-                )
-            except (ImportError, AttributeError) as import_error:
-                raise RobotDescriptionNotFoundError(
-                    robot_description_name,
-                ) from import_error
-            if MUJOCO_DESCRIPTION_VARIANT in robot_description_name:
-                return Path(robot_description_module.MJCF_PATH)
-            return Path(robot_description_module.URDF_PATH)
-        return Path(robot_description)
-
-    def _load_xacro(
-        self,
-        robot_description_path: Path,
-        mappings: dict,
-    ) -> tuple[pinocchio.Model, pinocchio.GeometryModel, pinocchio.GeometryModel]:
-        """Load the model/collision & visual models from an xacro file.
-
-        Args:
-            robot_description_path: Path to the robot description file
-            mappings: Mappings for the xacro file
-        Returns:
-            The robot description string from the xacro file
-        """
-        robot_description = load_xacro(
-            robot_description_path,
-            mappings,
-        )
-        # Loading Pinocchio model
-        with NamedTemporaryFile(
-            mode="w",
-            prefix="pinocchio_model_",
-            suffix=".urdf",
-            delete=False,
-        ) as parsed_file:
-            parsed_file_path = parsed_file.name
-            parsed_file.write(robot_description)
-        self.model_filename = Path(parsed_file_path)
-
-        return pinocchio.buildModelsFromUrdf(parsed_file_path)
-
-    def _load_models(
-        self,
-        robot_description_path: Path,
-        mappings: dict,
-    ) -> tuple[pinocchio.Model, pinocchio.GeometryModel, pinocchio.GeometryModel]:
-        """Load the model/collision & visual models.
-
-        Args:
-            robot_description_path: Path to the robot description file
-            mappings: Mappings for the xacro file
-        """
-        match robot_description_path.suffix:
-            case ".xacro" | ".urdf":
-                return self._load_xacro(robot_description_path, mappings)
-            case ".xml":
-                self.model_filename = robot_description_path
-                return pinocchio.shortcuts.buildModelsFromMJCF(
-                    str(self.model_filename),
-                    verbose=True,
-                )
-            case _:
-                msg = f"Unknown robot description file type: {robot_description_path}"
-                raise ValueError(msg)
-
-    def add_object(self, name: str, geometry_object, pose: pinocchio.SE3):
-        """Add an object to the robot's collision model.
-
-        Args:
-            name: Name of the object
-            geometry_object: Geometry object
-            pose: Pose of the object
-        """
-        geometry_object.name = name
-        geometry_object.parentJoint = 0
-        geometry_object.meshColor = np.array([1.0, 0.0, 0.0, 1.0])
-        geometry_object.placement = pose
-        geometry_object_collision_id = (
-            self.robot_model.collision_model.addGeometryObject(
-                geometry_object,
-            )
-        )
-        self._geometry_objects[name] = geometry_object_collision_id
-        self.robot_model.visual_model.addGeometryObject(geometry_object)
-        for geometry_id in range(
-            len(self.robot_model.collision_model.geometryObjects)
-            - len(self._geometry_objects),
-        ):
-            self.robot_model.collision_model.addCollisionPair(
-                pinocchio.CollisionPair(self._geometry_objects[name], geometry_id),
-            )
-
-    def _make_groups(self, model: pinocchio.Model, configs):
-        groups = {}
-        joint_id_to_indices = joint_ids_to_indices(model)
-        joint_id_to_velocity_indices = joint_ids_to_velocity_indices(model)
-        joint_id_to_name_indices = joint_ids_to_name_indices(model)
-        for group_name, group_config in configs["group"].items():
-            joints = group_config["joints"]
-            tcp_link_name = group_config.get("tcp_link_name")
-            if tcp_link_name is not None:
-                assert (
-                    tcp_link_name in self.link_names
-                ), f"Group {group_name} TCP link '{tcp_link_name}' not in link names: {self.link_names}"
-            for joint_name in joints:
-                if joint_name not in model.names:
-                    msg = f"Joint '{joint_name}' for group '{group_name}' not in model joints: {list(model.names)}"
-                    raise MissingJointError(
-                        msg,
-                    )
-            # TODO: Extend the comment about joint indices != joint ids
-            actuated_joint_indices = []
-            actuated_joint_position_indices = []
-            actuated_joint_velocity_indices = []
-            for joint_name in joints:
-                joint_id = model.getJointId(joint_name)
-                actuated_joint_indices.append(joint_id_to_name_indices[joint_id])
-                actuated_joint_position_indices.extend(joint_id_to_indices[joint_id])
-                actuated_joint_velocity_indices.append(
-                    joint_id_to_velocity_indices[joint_id],
-                )
-            named_states = {}
-            for state_name, state_config in group_config.get(
-                "named_states",
-                {},
-            ).items():
-                assert (
-                    len(state_config)
-                    == len(
-                        actuated_joint_position_indices,
-                    )
-                ), f"Named state '{state_name}' has {len(state_config)} joint positions, expected {len(actuated_joint_position_indices)} for {joints}"
-                named_states[state_name] = np.asarray(state_config)
-            groups[group_name] = GroupModel(
-                joints=joints,
-                joint_indices=np.asarray(actuated_joint_indices),
-                joint_position_indices=np.asarray(actuated_joint_position_indices),
-                joint_velocity_indices=np.asarray(actuated_joint_velocity_indices),
-                named_states=named_states,
-                tcp_link_name=tcp_link_name,
-            )
-        return groups
-
-    # TODO: Move to a free function?
     def jacobian(
         self,
-        robot_state: RobotState,
         target_frame_name,
         reference_frame=pinocchio.ReferenceFrame.LOCAL,
     ):
         """Calculate the Jacobian of a frame.
 
         Args:
-            robot_state: The robot state to calculate the Jacobian
             target_frame_name: The target frame name
             reference_frame: The reference frame
 
@@ -744,17 +680,15 @@ class Robot:
         return pinocchio.computeFrameJacobian(
             self.robot_model.model,
             data,
-            robot_state.qpos,
+            self.qpos,
             self.robot_model.model.getFrameId(target_frame_name),
             reference_frame,
         )
 
-    # TODO: Move to a free function? Or RobotState?
     def differential_ik(
         self,
         group_name: str,
         target_pose,
-        initial_configuration: RobotState,
         iteration_callback=None,
     ):
         """Compute the inverse kinematics of the robot for a given target pose.
@@ -762,17 +696,11 @@ class Robot:
         Args:
             group_name: The group name to compute the IK for
             target_pose: The target pose [x, y, z, qx, qy, qz, qw] or 4x4 homogeneous transformation matrix
-            initial_configuration: The initial configuration
             iteration_callback: Callback function after each iteration
 
         Returns:
             The joint positions for the target pose or None if no solution was found
         """
-        if iteration_callback is None:
-
-            def iteration_callback(_):
-                return None
-
         assert self.robot_model[
             group_name
         ].tcp_link_name, f"tcp_link_name is not defined for group '{group_name}'"
@@ -790,7 +718,7 @@ class Robot:
         configuration = pink.Configuration(
             self.robot_model.model,
             data,
-            initial_configuration.qpos,
+            self.qpos,
         )
         number_of_iterations = 0
         actuated_joints_velocities = np.zeros(self.robot_model.model.nv)
@@ -809,19 +737,107 @@ class Robot:
             ]
             configuration.integrate_inplace(actuated_joints_velocities, dt)
 
-            iteration_callback(RobotState(self.robot_model, configuration.q))
+            if iteration_callback is not None:
+                iteration_callback(RobotState(self.robot_model, configuration.q))
             if (
                 np.linalg.norm(end_effector_task.compute_error(configuration))
                 < MAX_ERROR
             ):
-                return RobotState(self.robot_model, configuration.q)
+                qpos = get_converted_qpos(self.robot_model, configuration.q)
+                self[group_name] = qpos[group.joint_position_indices]
+                return True
             configuration = pink.Configuration(
                 self.robot_model.model,
                 data,
                 configuration.q,
             )
             number_of_iterations += 1
-        return None
+        return False
+
+    # TODO: This will modify the robot_model, we need a better way to handle objects
+    def add_object(self, name: str, geometry_object, pose: pinocchio.SE3):
+        """Add an object to the robot's collision model.
+
+        Args:
+            name: Name of the object
+            geometry_object: Geometry object
+            pose: Pose of the object
+        """
+        geometry_object.name = name
+        geometry_object.parentJoint = 0
+        geometry_object.meshColor = np.array([1.0, 0.0, 0.0, 1.0])
+        geometry_object.placement = pose
+        geometry_object_collision_id = (
+            self.robot_model.collision_model.addGeometryObject(
+                geometry_object,
+            )
+        )
+        self.geometry_objects[name] = geometry_object_collision_id
+        self.robot_model.visual_model.addGeometryObject(geometry_object)
+        for geometry_id in range(
+            len(self.robot_model.collision_model.geometryObjects)
+            - len(self.geometry_objects),
+        ):
+            self.robot_model.collision_model.addCollisionPair(
+                pinocchio.CollisionPair(self.geometry_objects[name], geometry_id),
+            )
+
+
+def load_robot_model(config_path: Path) -> RobotModel:
+    """Load the robot model from the config file.
+
+    Args:
+        config_path: Path to the config file
+
+    Returns:
+        The robot model
+    """
+    if not config_path.exists():
+        msg = f"Config file does not exist: {config_path}"
+        raise FileNotFoundError(msg)
+    configs = toml.load(config_path)
+
+    mappings = configs["robot"].get("mappings", {})
+    model_filename, (model, collision_model, visual_model) = _load_models(
+        config_path.parent
+        / _get_robot_description_path(
+            configs["robot"]["description"],
+        ),
+        mappings=mappings,
+    )
+
+    collision_model.addAllCollisionPairs()
+    verbose = LOGGER.level == logging.DEBUG
+    if srdf_path := configs["robot"].get("disable_collisions"):
+        pinocchio.removeCollisionPairsFromXML(
+            model,
+            collision_model,
+            load_xacro(
+                config_path.parent / srdf_path,
+                mappings=mappings,
+            ),
+            verbose=verbose,
+        )
+    if verbose:
+        pretty.pprint(configs)
+
+    link_names = [frame.name for frame in model.frames]
+    base_link = configs["robot"]["base_link"]
+    if base_link not in link_names:
+        msg = f"Base link '{base_link}' not in link names: {link_names}"
+        raise MissingBaseLinkError(
+            msg,
+        )
+
+    return RobotModel(
+        model_filename,
+        base_link,
+        model,
+        collision_model,
+        visual_model,
+        _make_groups(model, configs),
+        configs["acceleration_limits"],
+    )
 
 
 # TODO: Maybe delete and combine with Robot class?
@@ -830,15 +846,15 @@ class Robot:
 class CasADiRobot:
     """A class to represent the robot in CasADi."""
 
-    def __init__(self, robot: Robot):
+    def __init__(self, robot_model: RobotModel):
         """Initialize the CasADi robot.
 
         Args:
-            robot: The robot to convert to CasADi.
+            robot_model: The robot model to use for the CasADi robot
         """
-        self.model = cpin.Model(robot.robot_model.model)
+        self.model = cpin.Model(robot_model.model)
         self.data = self.model.createData()
-        self.q = casadi.SX.sym("q", robot.robot_model.model.nq, 1)
+        self.q = casadi.SX.sym("q", robot_model.model.nq, 1)
         cpin.framesForwardKinematics(self.model, self.data, self.q)
         cpin.updateFramePlacements(self.model, self.data)
 

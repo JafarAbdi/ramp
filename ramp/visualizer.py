@@ -4,28 +4,28 @@ import meshcat
 import meshcat_shapes
 import pinocchio
 
-from ramp.robot import Robot, RobotState
+from ramp.robot import RobotModel, RobotState
 
 
 class Visualizer:
     """Meshcat visualizer for the robot."""
 
-    def __init__(self, robot: Robot) -> None:
+    def __init__(self, robot_model: RobotModel) -> None:
         """Initialize the visualizer.
 
         Args:
-            robot: The robot to visualize.
+            robot_model: Robot model used for visualization.
         """
-        self.robot = robot
+        self.robot_model = robot_model
         self.meshcat_visualizer = pinocchio.visualize.MeshcatVisualizer(
-            robot.robot_model.model,
-            robot.robot_model.collision_model,
-            robot.robot_model.visual_model,
+            robot_model.model,
+            robot_model.collision_model,
+            robot_model.visual_model,
         )
         self.trajectory_visualizer = pinocchio.visualize.MeshcatVisualizer(
-            robot.robot_model.model,
-            robot.robot_model.collision_model,
-            robot.robot_model.visual_model,
+            robot_model.model,
+            robot_model.collision_model,
+            robot_model.visual_model,
         )
         self.meshcat_visualizer.initViewer(
             viewer=meshcat.Visualizer(zmq_url="tcp://127.0.0.1:6000"),
@@ -38,14 +38,14 @@ class Visualizer:
         self.meshcat_visualizer.loadViewerModel()
         # TODO: The frames are pretty noisy - add a way to toggle them
         self.meshcat_visualizer.displayFrames(visibility=False)
-        self.meshcat_visualizer.display(pinocchio.neutral(robot.robot_model.model))
+        self.meshcat_visualizer.display(pinocchio.neutral(robot_model.model))
 
         self.trajectory_visualizer.viewer["trajectory"].set_property(
             "visible",
             value=False,
         )
         self.trajectory_visualizer.loadViewerModel(rootNodeName="trajectory")
-        self.trajectory_visualizer.display(pinocchio.neutral(robot.robot_model.model))
+        self.trajectory_visualizer.display(pinocchio.neutral(robot_model.model))
 
     def check_data(self, visualizer: pinocchio.visualize.MeshcatVisualizer):
         """Check if the model data changed and rebuild the data if needed."""
