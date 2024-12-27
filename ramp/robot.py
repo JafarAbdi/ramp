@@ -229,11 +229,12 @@ class RobotModel:
     """A class to represent a robot model."""
 
     model_filename: Path
-    joint_acceleration_limits: InitVar[dict[str, float]]
+    base_link: str
     model: pinocchio.Model
     collision_model: pinocchio.GeometryModel
     visual_model: pinocchio.GeometryModel
     groups: dict[str, GroupModel]
+    joint_acceleration_limits: InitVar[dict[str, float]]
     acceleration_limits: np.ndarray = field(init=False)
     joint_names: list[str] = field(init=False)
     mimic_joint_indices: np.ndarray = field(init=False)
@@ -562,6 +563,7 @@ class RobotState:
         self.robot_model = robot_model
         self.qpos = pinocchio.neutral(robot_model.model) if qpos is None else qpos
         self.qvel = np.zeros(robot_model.model.nv) if qvel is None else qvel
+        self.geometry_objects = {}
 
     def __getitem__(self, key):
         """Get the actuated joint positions for a group."""
@@ -582,7 +584,13 @@ class RobotState:
 
     def clone(self):
         """Clone the robot state."""
-        return RobotState(self.robot_model, np.copy(self.qpos), np.copy(self.qvel))
+        robot_state = RobotState(
+            self.robot_model,
+            np.copy(self.qpos),
+            np.copy(self.qvel),
+        )
+        robot_state.geometry_objects = self.geometry_objects.copy()
+        return robot_state
 
     @property
     def actuated_qpos(self) -> np.ndarray:
@@ -746,66 +754,7 @@ class RobotState:
             number_of_iterations += 1
         return False
 
-
-class Robot:
-    """Robot base class."""
-
-    def __init__(
-        self,
-        config_path: Path,
-    ) -> None:
-        """Init.
-
-        Args:
-            config_path: Path to the config file configs.toml
-        """
-        if not config_path.exists():
-            msg = f"Config file does not exist: {config_path}"
-            raise FileNotFoundError(msg)
-        configs = toml.load(config_path)
-
-        mappings = configs["robot"].get("mappings", {})
-        model_filename, (model, collision_model, visual_model) = _load_models(
-            config_path.parent
-            / _get_robot_description_path(
-                configs["robot"]["description"],
-            ),
-            mappings=mappings,
-        )
-
-        collision_model.addAllCollisionPairs()
-        self._geometry_objects = {}
-        verbose = LOGGER.level == logging.DEBUG
-        if srdf_path := configs["robot"].get("disable_collisions"):
-            pinocchio.removeCollisionPairsFromXML(
-                model,
-                collision_model,
-                load_xacro(
-                    config_path.parent / srdf_path,
-                    mappings=mappings,
-                ),
-                verbose=verbose,
-            )
-        if verbose:
-            pretty.pprint(configs)
-
-        link_names = [frame.name for frame in model.frames]
-        self.base_link = configs["robot"]["base_link"]
-        if self.base_link not in link_names:
-            msg = f"Base link '{self.base_link}' not in link names: {link_names}"
-            raise MissingBaseLinkError(
-                msg,
-            )
-
-        self.robot_model = RobotModel(
-            model_filename,
-            configs["acceleration_limits"],
-            model,
-            collision_model,
-            visual_model,
-            _make_groups(model, configs),
-        )
-
+    # TODO: This will modify the robot_model, we need a better way to handle objects
     def add_object(self, name: str, geometry_object, pose: pinocchio.SE3):
         """Add an object to the robot's collision model.
 
@@ -823,15 +772,72 @@ class Robot:
                 geometry_object,
             )
         )
-        self._geometry_objects[name] = geometry_object_collision_id
+        self.geometry_objects[name] = geometry_object_collision_id
         self.robot_model.visual_model.addGeometryObject(geometry_object)
         for geometry_id in range(
             len(self.robot_model.collision_model.geometryObjects)
-            - len(self._geometry_objects),
+            - len(self.geometry_objects),
         ):
             self.robot_model.collision_model.addCollisionPair(
-                pinocchio.CollisionPair(self._geometry_objects[name], geometry_id),
+                pinocchio.CollisionPair(self.geometry_objects[name], geometry_id),
             )
+
+
+def load_robot_model(config_path: Path) -> RobotModel:
+    """Load the robot model from the config file.
+
+    Args:
+        config_path: Path to the config file
+
+    Returns:
+        The robot model
+    """
+    if not config_path.exists():
+        msg = f"Config file does not exist: {config_path}"
+        raise FileNotFoundError(msg)
+    configs = toml.load(config_path)
+
+    mappings = configs["robot"].get("mappings", {})
+    model_filename, (model, collision_model, visual_model) = _load_models(
+        config_path.parent
+        / _get_robot_description_path(
+            configs["robot"]["description"],
+        ),
+        mappings=mappings,
+    )
+
+    collision_model.addAllCollisionPairs()
+    verbose = LOGGER.level == logging.DEBUG
+    if srdf_path := configs["robot"].get("disable_collisions"):
+        pinocchio.removeCollisionPairsFromXML(
+            model,
+            collision_model,
+            load_xacro(
+                config_path.parent / srdf_path,
+                mappings=mappings,
+            ),
+            verbose=verbose,
+        )
+    if verbose:
+        pretty.pprint(configs)
+
+    link_names = [frame.name for frame in model.frames]
+    base_link = configs["robot"]["base_link"]
+    if base_link not in link_names:
+        msg = f"Base link '{base_link}' not in link names: {link_names}"
+        raise MissingBaseLinkError(
+            msg,
+        )
+
+    return RobotModel(
+        model_filename,
+        base_link,
+        model,
+        collision_model,
+        visual_model,
+        _make_groups(model, configs),
+        configs["acceleration_limits"],
+    )
 
 
 # TODO: Maybe delete and combine with Robot class?
@@ -840,15 +846,15 @@ class Robot:
 class CasADiRobot:
     """A class to represent the robot in CasADi."""
 
-    def __init__(self, robot: Robot):
+    def __init__(self, robot_model: RobotModel):
         """Initialize the CasADi robot.
 
         Args:
-            robot: The robot to convert to CasADi.
+            robot_model: The robot model to use for the CasADi robot
         """
-        self.model = cpin.Model(robot.robot_model.model)
+        self.model = cpin.Model(robot_model.model)
         self.data = self.model.createData()
-        self.q = casadi.SX.sym("q", robot.robot_model.model.nq, 1)
+        self.q = casadi.SX.sym("q", robot_model.model.nq, 1)
         cpin.framesForwardKinematics(self.model, self.data, self.q)
         cpin.updateFramePlacements(self.model, self.data)
 
