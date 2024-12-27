@@ -33,7 +33,7 @@ def test_rrr():
     target_pose = [0.4, 0.0, 0.2, 0.0, 1.0, 0.0, 0.0]
     # Using IK
     ik_solver = IKSolver(
-        robot.model_filename,
+        robot.robot_model.model_filename,
         robot.base_link,
         robot.robot_model[group_name].tcp_link_name,
     )
@@ -41,25 +41,15 @@ def test_rrr():
     target_joint_positions = ik_solver.solve(target_pose, initial_qpos)
     assert target_joint_positions is not None
 
-    initial_state = RobotState.from_named_state(robot.robot_model, group_name, "home")
+    robot_state = RobotState.from_named_state(robot.robot_model, group_name, "home")
     # Using differential-ik
-    robot_state = robot.differential_ik(
-        group_name,
-        target_pose,
-        initial_state,
-    )
-    assert robot_state is not None
+    assert robot_state.differential_ik(group_name, target_pose)
     pose = robot_state.get_frame_pose(robot.robot_model[group_name].tcp_link_name)
     assert np.allclose(target_pose, pinocchio.SE3ToXYZQUAT(pose), atol=1e-3)
 
     # Should fail, rrr robot has end_effector_joint as revolute joint with [0.0, 0.0] limits (It can't rotate)
     target_pose = [0.4, 0.0, 0.2, 1.0, 0.0, 0.0, 0.0]
-    target_joint_positions = robot.differential_ik(
-        group_name,
-        target_pose,
-        initial_state,
-    )
-    assert target_joint_positions is None
+    assert not robot_state.differential_ik(group_name, target_pose)
 
 
 def test_no_tcp_link():
@@ -111,39 +101,35 @@ def test_ik(robot_name):
     # TODO: Add a loop to check for 100 different poses
     # Use fk to check if the pose is actually same as the input one
     group_name = "arm"
-    initial_state = RobotState.from_named_state(robot.robot_model, group_name, "home")
-    target_joint_positions = robot.differential_ik(
+    robot_state = RobotState.from_named_state(robot.robot_model, group_name, "home")
+    assert robot_state.clone().differential_ik(
         group_name,
         [0.2, 0.2, 0.2, 1.0, 0.0, 0.0, 0.0],
-        initial_state,
     )
-    assert target_joint_positions is not None
     ik_solver = IKSolver(
-        robot.model_filename,
+        robot.robot_model.model_filename,
         robot.base_link,
         robot.robot_model[group_name].tcp_link_name,
     )
     target_joint_positions = ik_solver.solve(
         [0.2, 0.2, 0.2, 1.0, 0.0, 0.0, 0.0],
-        initial_state.actuated_qpos,
+        robot_state.actuated_qpos,
     )
     assert target_joint_positions is not None
 
     # Outside workspace should fail
-    target_joint_positions = robot.differential_ik(
+    assert not robot_state.clone().differential_ik(
         group_name,
         [2.0, 2.0, 2.0, 1.0, 0.0, 0.0, 0.0],
-        initial_state,
     )
-    assert target_joint_positions is None
     ik_solver = IKSolver(
-        robot.model_filename,
+        robot.robot_model.model_filename,
         robot.base_link,
         robot.robot_model[group_name].tcp_link_name,
     )
     target_joint_positions = ik_solver.solve(
         [2.0, 2.0, 2.0, 1.0, 0.0, 0.0, 0.0],
-        initial_state.actuated_qpos,
+        robot_state.actuated_qpos,
     )
     assert target_joint_positions is None
 
