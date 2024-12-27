@@ -21,7 +21,7 @@ GROUP_NAME = "arm"
 def test_motion_planning():
     """Test motion planning interface."""
     robot = Robot(FILE_PATH / ".." / "robots" / "rrr" / "configs.toml")
-    planner = MotionPlanner(robot, GROUP_NAME)
+    planner = MotionPlanner(robot.robot_model, GROUP_NAME)
     start_state = RobotState.from_named_state(robot.robot_model, GROUP_NAME, "home")
     plan = planner.plan(start_state, [0.0, 1.0, 1.0])
     assert plan is not None, "Expected a plan to be found"
@@ -38,7 +38,7 @@ def test_motion_planning():
             np.asarray([0.475, 0.0, 0.5]),
         ),
     )
-    planner = MotionPlanner(robot, GROUP_NAME)
+    planner = MotionPlanner(robot.robot_model, GROUP_NAME)
     start_state = RobotState.from_named_state(robot.robot_model, GROUP_NAME, "home")
     plan = planner.plan(start_state, [1.0, -0.5, 1.57, 0.5, 0.25, 0.1], timeout=5.0)
     assert plan is not None, "Expected a plan to be found"
@@ -53,7 +53,7 @@ def test_motion_planning():
             np.asarray([0.475, 0.0, 0.5]),
         ),
     )
-    planner = MotionPlanner(robot, GROUP_NAME)
+    planner = MotionPlanner(robot.robot_model, GROUP_NAME)
     start_state = RobotState.from_named_state(robot.robot_model, GROUP_NAME, "home")
     plan = planner.plan(
         start_state, [1.0, 0.5, 1.0, 1.0, 0.0, 0.0, 0.0, 0.5, 0.25, 0.1], timeout=5.0

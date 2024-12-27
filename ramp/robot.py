@@ -229,10 +229,12 @@ class RobotModel:
     """A class to represent a robot model."""
 
     model_filename: InitVar[Path]
+    joint_acceleration_limits: InitVar[dict[str, float]]
     model: pinocchio.Model
     collision_model: pinocchio.GeometryModel
     visual_model: pinocchio.GeometryModel
     groups: dict[str, GroupModel]
+    acceleration_limits: np.ndarray = field(init=False)
     joint_names: list[str] = field(init=False)
     mimic_joint_indices: np.ndarray = field(init=False)
     mimic_joint_multipliers: np.ndarray = field(init=False)
@@ -240,7 +242,7 @@ class RobotModel:
     mimicked_joint_indices: np.ndarray = field(init=False)
     continuous_joint_indices: np.ndarray = field(init=False)
 
-    def __post_init__(self, model_filename):
+    def __post_init__(self, model_filename, joint_acceleration_limits):
         """Initialize the robot model."""
         object.__setattr__(
             self,
@@ -261,6 +263,18 @@ class RobotModel:
         for group in self.groups.values():
             joint_names.extend(group.joints)
         object.__setattr__(self, "joint_names", joint_names)
+
+        acceleration_limits = []
+        for joint_name in self.joint_names:
+            if (
+                joint_acceleration_limit := joint_acceleration_limits.get(joint_name)
+            ) is None:
+                raise MissingAccelerationLimitError(
+                    self.joint_names,
+                    joint_acceleration_limits.keys(),
+                )
+            acceleration_limits.append(joint_acceleration_limit)
+        object.__setattr__(self, "acceleration_limits", np.asarray(acceleration_limits))
 
     def __getitem__(self, key):
         """Get a group by name."""
@@ -522,32 +536,13 @@ class Robot:
                 msg,
             )
 
-        groups = self._make_groups(model, configs)
-
-        # TODO: Move to RobotModel
-        joint_names = []
-        for group in groups.values():
-            joint_names.extend(group.joints)
-
-        acceleration_limits = configs["acceleration_limits"]
-        self.acceleration_limits = []
-        for joint_name in joint_names:
-            if (
-                joint_acceleration_limit := acceleration_limits.get(joint_name)
-            ) is None:
-                raise MissingAccelerationLimitError(
-                    joint_names,
-                    acceleration_limits.keys(),
-                )
-            self.acceleration_limits.append(joint_acceleration_limit)
-        self.acceleration_limits = np.asarray(self.acceleration_limits)
-
         self.robot_model = RobotModel(
             self.model_filename,
+            configs["acceleration_limits"],
             model,
             collision_model,
             visual_model,
-            groups,
+            self._make_groups(model, configs),
         )
 
     def _get_robot_description_path(self, robot_description: str) -> Path:

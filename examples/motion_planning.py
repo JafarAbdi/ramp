@@ -37,6 +37,6 @@ for robot_path, goal_state in robots:
     visualize.robot_state(start_state)
     input("Press Enter to plan a path to the goal state...")
 
-    planner = MotionPlanner(robot, group_name)
+    planner = MotionPlanner(robot.robot_model, group_name)
     if path := planner.plan(start_state, goal_state, timeout=5.0):
         visualize.robot_trajectory(path)

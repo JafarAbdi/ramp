@@ -13,18 +13,14 @@ joints = [
   "fr3_joint7",
 ]
 tcp_link_name = "tcp_link"
-gripper = { name = "gripper", actuated_joint = "robotiq_85_left_inner_knuckle_joint", open = 0.0, close = 0.695 }
+named_states = { home = [0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785] }
 
-[named_states]
-home = [
-  # Group arm
-  0.0,
-  -0.785,
-  0.0,
-  -2.356,
-  0.0,
-  1.571,
-  0.785,
-  # Group gripper
-  1.0,
-]
+[acceleration_limits]
+fr3_joint1 = 3.75
+fr3_joint2 = 1.875
+fr3_joint3 = 2.5
+fr3_joint4 = 3.125
+fr3_joint5 = 3.75
+fr3_joint6 = 5.0
+fr3_joint7 = 5.0
+robotiq_85_left_inner_knuckle_joint = 1.0

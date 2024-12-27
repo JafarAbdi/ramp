@@ -21,7 +21,7 @@ robot_state = RobotState(
 )
 visualize.robot_state(robot_state)
 
-planner = MotionPlanner(robot, LEFT_GROUP_NAME)
+planner = MotionPlanner(robot.robot_model, LEFT_GROUP_NAME)
 if path := planner.plan(
     robot_state,
     [0.5, 0.5, 0.5, 0.5],
@@ -30,7 +30,7 @@ if path := planner.plan(
     visualize.robot_trajectory(path)
 
 input("Press Enter to continue...")
-planner = MotionPlanner(robot, RIGHT_GROUP_NAME)
+planner = MotionPlanner(robot.robot_model, RIGHT_GROUP_NAME)
 if path := planner.plan(
     robot_state,
     [-0.5, -0.5, -0.5, -0.5],

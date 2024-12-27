@@ -23,7 +23,7 @@ from ramp.constants import (
     PINOCCHIO_TRANSLATION_JOINT,
     PINOCCHIO_UNBOUNDED_JOINT,
 )
-from ramp.robot import Robot, RobotState, check_collision
+from ramp.robot import RobotModel, RobotState, check_collision
 
 LOGGER = logging.getLogger(__name__)
 LOGGER.setLevel(level=os.getenv("LOG_LEVEL", "INFO").upper())
@@ -125,20 +125,20 @@ class ProjectionEvaluatorLinkPose(ob.ProjectionEvaluator):
 class MotionPlanner:
     """A wrapper for OMPL planners."""
 
-    def __init__(self, robot: Robot, group_name: str, planner=None) -> None:
+    def __init__(self, robot_model: RobotModel, group_name: str, planner=None) -> None:
         """Initialize the motion planner.
 
         Args:
-            robot: The robot to plan for.
+            robot_model: The robot model.
             group_name: The group to plan for.
             planner: The planner to use.
         """
-        self._robot = robot
+        self._robot_model = robot_model
         self._group_name = group_name
         self._space = ob.CompoundStateSpace()
         self.state_spaces = []
-        for idx in robot.robot_model.groups[group_name].joint_indices:
-            joint = robot.robot_model.model.joints[int(idx)]
+        for idx in robot_model[group_name].joint_indices:
+            joint = robot_model.model.joints[int(idx)]
             joint_type = joint.shortname()
             if (
                 re.match(PINOCCHIO_REVOLUTE_JOINT, joint_type)
@@ -149,11 +149,11 @@ class MotionPlanner:
                 space = ob.RealVectorStateSpace(1)
                 bounds.setLow(
                     0,
-                    robot.robot_model.model.lowerPositionLimit[joint.idx_q],
+                    robot_model.model.lowerPositionLimit[joint.idx_q],
                 )
                 bounds.setHigh(
                     0,
-                    robot.robot_model.model.upperPositionLimit[joint.idx_q],
+                    robot_model.model.upperPositionLimit[joint.idx_q],
                 )
                 space.setBounds(bounds)
                 self._space.addSubspace(space, 1.0)
@@ -200,7 +200,7 @@ class MotionPlanner:
                 self._space.addSubspace(space, 1.0)
                 self.state_spaces.append(ob.STATE_SPACE_SE3)
             else:
-                msg = f"Unknown joint type: '{joint_type}' for joint '{robot.robot_model.model.names[int(idx)]}'"
+                msg = f"Unknown joint type: '{joint_type}' for joint '{robot_model.model.names[int(idx)]}'"
                 raise ValueError(msg)
 
         self._setup = og.SimpleSetup(self._space)
@@ -287,7 +287,7 @@ class MotionPlanner:
             The trajectory as a list of joint positions or None if no solution was found.
         """
         assert len(group_goal_qpos) == len(
-            self._robot.robot_model[self._group_name].joint_position_indices,
+            self._robot_model[self._group_name].joint_position_indices,
         )
         goal_state = start_state.clone()
         goal_state[self._group_name] = group_goal_qpos
@@ -304,12 +304,12 @@ class MotionPlanner:
         )
 
         # TODO: Fix
-        if self._robot.robot_model[self._group_name].tcp_link_name is not None:
+        if self._robot_model[self._group_name].tcp_link_name is not None:
 
             def pose_fn(state):
                 return self._robot.get_frame_pose(
                     self.from_ompl_state(state),
-                    self._robot.robot_model[self._group_name].tcp_link_name,
+                    self._robot_model[self._group_name].tcp_link_name,
                 ).np
 
             self._space.registerDefaultProjection(
@@ -394,7 +394,6 @@ class MotionPlanner:
             ompl_state(),
         ) and not check_collision(robot_state)
 
-    # TODO: Move to a standalone function
     def parameterize(
         self,
         waypoints: list[RobotState],
@@ -418,8 +417,8 @@ class MotionPlanner:
                 [waypoint[self._group_name] for waypoint in waypoints],
                 max_deviation,
             ),
-            self._robot.robot_model.velocity_limits,
-            self._robot.acceleration_limits,
+            self._robot_model.velocity_limits,
+            self._robot_model.acceleration_limits,
         )
         if not trajectory.isValid():
             LOGGER.error("Failed to parameterize trajectory")
@@ -430,8 +429,8 @@ class MotionPlanner:
             rs = waypoints[0].clone()
             rs[self._group_name] = trajectory.getPosition(t)
             # TODO: Need a utility function for this
-            rs.qvel[
-                self._robot.robot_model[self._group_name].joint_velocity_indices
-            ] = trajectory.getVelocity(t)
+            rs.qvel[self._robot_model[self._group_name].joint_velocity_indices] = (
+                trajectory.getVelocity(t)
+            )
             parameterized_trajectory.append((rs, t))
         return parameterized_trajectory
