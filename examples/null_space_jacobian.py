@@ -7,7 +7,7 @@ import numpy as np
 import pinocchio as pin
 from rich.logging import RichHandler
 
-from ramp.robot import CasADiRobot, Robot, RobotState
+from ramp.robot import load_robot_model, CasADiRobot, RobotState
 from ramp.visualizer import Visualizer
 
 logging.basicConfig(
@@ -70,17 +70,17 @@ def calculate_jacobian(theta):
     return J
 
 
-robot = Robot(pathlib.Path("robots/planar_rrr/configs.toml"))
+robot_model = load_robot_model(pathlib.Path("robots/planar_rrr/configs.toml"))
 
 theta = np.array([np.pi / 4, np.pi / 3, np.pi / 6])
-robot_state = RobotState.from_actuated_qpos(robot.robot_model, [0.0, 0.0, 0.0])
+robot_state = RobotState.from_actuated_qpos(robot_model, [0.0, 0.0, 0.0])
 LOGGER.info(
     robot_state.jacobian(
         "end_effector",
         reference_frame=pin.ReferenceFrame.LOCAL_WORLD_ALIGNED,
     )[:3, :3],
 )
-robot_state = RobotState.from_actuated_qpos(robot.robot_model, theta)
+robot_state = RobotState.from_actuated_qpos(robot_model, theta)
 LOGGER.info(
     robot_state.jacobian(
         "end_effector",
@@ -91,7 +91,7 @@ LOGGER.info(calculate_jacobian(np.array([0.0, 0.0, 0.0])))
 LOGGER.info(calculate_jacobian(theta))
 
 LOGGER.info("Calculating Jacobian Pseudo-Inverse")
-robot_state = RobotState.from_actuated_qpos(robot.robot_model, theta)
+robot_state = RobotState.from_actuated_qpos(robot_model, theta)
 J = robot_state.jacobian(
     "end_effector",
     reference_frame=pin.ReferenceFrame.LOCAL_WORLD_ALIGNED,
@@ -120,15 +120,16 @@ LOGGER.info(
 )
 
 group_name = "arm"
-tcp_name = robot.robot_model[group_name].tcp_link_name
+tcp_name = robot_model[group_name].tcp_link_name
 if len(sys.argv) > 1 and sys.argv[1] == "visualize":
-    visualizer = Visualizer(robot)
-    visualizer.robot_state(RobotState(robot.robot_model, theta))
+    visualizer = Visualizer(robot_model)
+    robot_state = RobotState.from_actuated_qpos(robot_model, [0.0, 0.0, 0.0])
+    visualizer.robot_state(robot_state)
     visualizer.frame(
         tcp_name,
-        robot.get_frame_pose(RobotState(robot.robot_model, theta), tcp_name).np,
+        robot_state.get_frame_pose(tcp_name).np,
     )
 
-casadi_robot = CasADiRobot(robot)
-LOGGER.info(casadi_robot.data.oMf[robot.robot_model.model.getFrameId(tcp_name)])
+casadi_robot = CasADiRobot(robot_model)
+LOGGER.info(casadi_robot.data.oMf[robot_model.model.getFrameId(tcp_name)])
 LOGGER.info(casadi.simplify(casadi_robot.jacobian(tcp_name, pin.LOCAL_WORLD_ALIGNED)))

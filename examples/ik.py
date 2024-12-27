@@ -7,7 +7,7 @@ import pathlib
 
 from rich.logging import RichHandler
 
-from ramp.robot import Robot, RobotState
+from ramp.robot import load_robot_model, RobotState
 from ramp.visualizer import Visualizer
 from ramp.ik_solver import IKSolver
 
@@ -39,10 +39,14 @@ class FakeVisualizer:
 
 class IKDemo:
     def __init__(self, config_name: str, visualize: bool):
-        self.robot = Robot(pathlib.Path(f"robots/{config_name}/configs.toml"))
-        self.visualizer = Visualizer(self.robot) if visualize else FakeVisualizer()
+        self.robot_model = load_robot_model(
+            pathlib.Path(f"robots/{config_name}/configs.toml")
+        )
+        self.visualizer = (
+            Visualizer(self.robot_model) if visualize else FakeVisualizer()
+        )
         self.initial_state = RobotState.from_named_state(
-            self.robot.robot_model,
+            self.robot_model,
             GROUP_NAME,
             "home",
         )
@@ -68,15 +72,15 @@ class IKDemo:
         else:
             LOGGER.info(f"IK succeeded: {robot_state}")
             LOGGER.info(
-                f"TCP Pose for target joint positions: {robot_state.get_frame_pose(self.robot.robot_model[GROUP_NAME].tcp_link_name)}",
+                f"TCP Pose for target joint positions: {robot_state.get_frame_pose(self.robot_model[GROUP_NAME].tcp_link_name)}",
             )
 
         input("Press Enter to start IK using trac-ik solver")
         self.reset()
         ik_solver = IKSolver(
-            self.robot.robot_model.model_filename,
-            self.robot.base_link,
-            self.robot.robot_model[GROUP_NAME].tcp_link_name,
+            self.robot_model.model_filename,
+            self.robot_model.base_link,
+            self.robot_model[GROUP_NAME].tcp_link_name,
         )
         target_joint_positions = ik_solver.solve(
             target_pose, self.initial_state.actuated_qpos
@@ -88,7 +92,7 @@ class IKDemo:
             robot_state[GROUP_NAME] = target_joint_positions
             LOGGER.info(f"IK succeeded: {target_joint_positions}")
             LOGGER.info(
-                f"TCP Pose for target joint positions: {robot_state.get_frame_pose(self.robot.robot_model[GROUP_NAME].tcp_link_name)}",
+                f"TCP Pose for target joint positions: {robot_state.get_frame_pose(self.robot_model[GROUP_NAME].tcp_link_name)}",
             )
             self.visualize(robot_state)
 

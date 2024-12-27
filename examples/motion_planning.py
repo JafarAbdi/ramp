@@ -6,7 +6,7 @@ import sys
 import numpy as np
 import pinocchio as pin
 
-from ramp.robot import Robot, RobotState
+from ramp.robot import load_robot_model, RobotState
 from ramp.motion_planner import MotionPlanner
 from ramp.visualizer import Visualizer
 
@@ -27,24 +27,24 @@ if len(sys.argv) > 1 and sys.argv[1] == "visualize":
     visualize = True
 
 for robot_path, goal_state in robots:
-    robot = Robot(pathlib.Path(f"robots/{robot_path}.toml"))
+    robot_model = load_robot_model(pathlib.Path(f"robots/{robot_path}.toml"))
     if visualize:
         input(
             f"Press Enter to continue with robot {robot_path} and a collision object in the scene..."
         )
-        visualizer = Visualizer(robot)
+        visualizer = Visualizer(robot_model)
 
-    robot.add_object(
+    start_state = RobotState.from_named_state(robot_model, group_name, "home")
+    start_state.add_object(
         "capsule",
         pin.GeometryObject.CreateCapsule(0.1, 0.4),
         pin.SE3(pin.Quaternion(0.707, 0.707, 0.0, 0.0), np.asarray([0.475, 0.0, 0.5])),
     )
-    start_state = RobotState.from_named_state(robot.robot_model, group_name, "home")
     if visualize:
         visualizer.robot_state(start_state)
         input("Press Enter to plan a path to the goal state...")
 
-    planner = MotionPlanner(robot.robot_model, group_name)
+    planner = MotionPlanner(robot_model, group_name)
     if path := planner.plan(start_state, goal_state, timeout=5.0):
         print(f"Found a path with {len(path)} waypoints.")
         if visualize:
