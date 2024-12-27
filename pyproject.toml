@@ -26,6 +26,8 @@ repository = "https://github.com/JafarAbdi/ramp"
 include = ["ramp"]
 
 [project.scripts]
+model_info = "ramp.model_info:main"
+compute_disable_collisions = "ramp.compute_disable_collisions:main"
 
 [tool.mypy]
 python_version = '3.10'
@@ -160,13 +162,11 @@ platforms = ["linux-64", "osx-arm64"]
 preview = ["pixi-build"]
 
 [tool.pixi.dependencies]
-pip = ">=23.3.2,<23.4"
 numpy = ">=1.26.3,<1.27"
-time_optimal_trajectory_generation_py = { version = ">=0.0.1", channel = "https://repo.prefix.dev/ramp" }
+time_optimal_trajectory_generation_py = { version = ">=0.0.1,<0.0.2", channel = "https://repo.prefix.dev/ramp" }
 scipy = ">=1.13.0,<1.14"
 toml = ">=0.10.2,<0.11"
 jupyterlab = ">=4.2.4,<4.3"
-pinocchio = "==3.3"
 sympy = ">=1.13.2,<1.14"
 rich = ">=13.7.1,<14"
 robot_descriptions = ">=1.12.0,<2"
@@ -174,6 +174,8 @@ robot_descriptions = ">=1.12.0,<2"
 # ompl = "==1.6.0"
 
 [tool.pixi.target.linux.dependencies]
+# TODO: Why can't install version 3.3.1 on osx-arm64?
+pinocchio = "==3.3.1"
 realsense2_description = { version = ">=4.54.1", channel = "https://repo.prefix.dev/ramp" }
 ur_description = { version = ">=2.1.4", channel = "https://repo.prefix.dev/ramp" }
 ur_robot_driver = { version = ">=2.2.11", channel = "https://repo.prefix.dev/ramp" }

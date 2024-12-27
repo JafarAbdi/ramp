@@ -5,9 +5,7 @@ disable_collisions = "acrobot.srdf.xacro"
 
 [group.arm]
 joints = ["elbow"]
-
-[named_states]
-home = [0.0]
+named_states = { home = [0.0] }
 
 [acceleration_limits]
 elbow = 1.0

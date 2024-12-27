@@ -7,10 +7,7 @@ mappings = { prefix = "", finger_prefix = "_" }
 [group.arm]
 joints = ["joint1", "joint2", "joint3", "joint4", "joint5", "joint6", "joint7"]
 tcp_link_name = "hand"
-gripper = { actuated_joint = "finger_joint1", open = 0.035, close = 0.0 }
-
-[named_states]
-home = [0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785, 0.0]
+named_states = { home = [0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785] }
 
 # URDF doesn't provide acceleration limits
 # https://frankaemika.github.io/docs/control_parameters.html#limits-for-panda

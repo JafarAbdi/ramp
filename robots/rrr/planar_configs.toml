@@ -8,8 +8,14 @@ mappings = { mobile_base_type = "planar" }
 joints = ["planar_joint", "joint1", "joint2", "joint3"]
 tcp_link_name = "end_effector"
 
-[named_states]
-home = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] # x, y, theta, joint1, joint2, joint3
+named_states = { home = [
+  0.0, # x
+  0.0, # y
+  0.0, # theta
+  0.0, # joint1
+  0.0, # joint2
+  0.0, # joint3
+] }
 
 [acceleration_limits]
 joint1 = 1.0

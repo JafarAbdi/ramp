@@ -1,0 +1,32 @@
+[robot]
+base_link = "universe"
+description = "../../external/mujoco_menagerie/unitree_h1/h1.xml"
+disable_collisions = "h1.srdf.xacro"
+
+[group.left_arm]
+joints = [
+  "left_shoulder_pitch",
+  "left_shoulder_roll",
+  "left_shoulder_yaw",
+  "left_elbow",
+]
+named_states = { home = [0.0, 0.0, 0.0, 0.0] }
+
+[group.right_arm]
+joints = [
+  "right_shoulder_pitch",
+  "right_shoulder_roll",
+  "right_shoulder_yaw",
+  "right_elbow",
+]
+named_states = { home = [0.0, 0.0, 0.0, 0.0] }
+
+[acceleration_limits]
+left_shoulder_pitch = 1.0
+left_shoulder_roll = 1.0
+left_shoulder_yaw = 1.0
+left_elbow = 1.0
+right_shoulder_pitch = 1.0
+right_shoulder_roll = 1.0
+right_shoulder_yaw = 1.0
+right_elbow = 1.0

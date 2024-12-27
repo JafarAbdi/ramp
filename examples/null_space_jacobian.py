@@ -6,9 +6,8 @@ import numpy as np
 import pinocchio as pin
 from rich.logging import RichHandler
 
-from ramp.robot import CasADiRobot, Robot
+from ramp.robot import CasADiRobot, Robot, RobotState
 from ramp.visualizer import Visualizer
-from ramp.constants import GROUP_NAME
 
 logging.basicConfig(
     level="NOTSET",
@@ -76,14 +75,14 @@ visualizer = Visualizer(robot)
 theta = np.array([np.pi / 4, np.pi / 3, np.pi / 6])
 LOGGER.info(
     robot.jacobian(
-        np.array([0.0, 0.0, 0.0]),
+        RobotState(robot.robot_model, [0.0, 0.0, 0.0]),
         "end_effector",
         reference_frame=pin.ReferenceFrame.LOCAL_WORLD_ALIGNED,
     )[:3, :3],
 )
 LOGGER.info(
     robot.jacobian(
-        theta,
+        RobotState(robot.robot_model, theta),
         "end_effector",
         reference_frame=pin.ReferenceFrame.LOCAL_WORLD_ALIGNED,
     )[:3, :3],
@@ -93,7 +92,7 @@ LOGGER.info(calculate_jacobian(theta))
 
 LOGGER.info("Calculating Jacobian Pseudo-Inverse")
 J = robot.jacobian(
-    theta,
+    RobotState(robot.robot_model, theta),
     "end_effector",
     reference_frame=pin.ReferenceFrame.LOCAL_WORLD_ALIGNED,
 )[:3, :3]
@@ -120,13 +119,14 @@ LOGGER.info(
     f"J * (I - J_pinv @ J) @ z = eef_velocity should be zero: {J @ (np.eye(3) - J_pinv @ J) @ z}",
 )
 
-visualizer.robot_state(theta)
-tcp_name = robot.groups[GROUP_NAME].tcp_link_name
+group_name = "arm"
+visualizer.robot_state(RobotState(robot.robot_model, theta))
+tcp_name = robot.robot_model[group_name].tcp_link_name
 visualizer.frame(
     tcp_name,
-    robot.get_frame_pose(theta, tcp_name).np,
+    robot.get_frame_pose(RobotState(robot.robot_model, theta), tcp_name).np,
 )
 
 casadi_robot = CasADiRobot(robot)
-LOGGER.info(casadi_robot.data.oMf[robot.model.getFrameId(tcp_name)])
+LOGGER.info(casadi_robot.data.oMf[robot.robot_model.model.getFrameId(tcp_name)])
 LOGGER.info(casadi.simplify(casadi_robot.jacobian(tcp_name, pin.LOCAL_WORLD_ALIGNED)))

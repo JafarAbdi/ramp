@@ -9,8 +9,7 @@ import pinocchio as pin
 from pinocchio import casadi as cpin
 from rich.logging import RichHandler
 
-from ramp.robot import CasADiRobot, Robot
-from ramp.constants import GROUP_NAME
+from ramp.robot import CasADiRobot, Robot, RobotState
 from ramp.visualizer import Visualizer
 
 logging.basicConfig(
@@ -20,6 +19,7 @@ logging.basicConfig(
     handlers=[RichHandler()],
 )
 LOGGER = logging.getLogger(__name__)
+GROUP_NAME = "arm"
 
 
 def ik(config_name: str):
@@ -36,14 +36,12 @@ def ik(config_name: str):
     visualizer.frame("target", transform_target_to_world.np)
 
     def callback(q: np.ndarray):
+        robot_state = RobotState(robot.robot_model, q)
         visualizer.frame(
             "current",
-            robot.get_frame_pose(
-                robot.from_pinocchio_joint_positions(q),
-                robot.groups[GROUP_NAME].tcp_link_name,
-            ).np,
+            robot_state.get_frame_pose(robot.robot_model[GROUP_NAME].tcp_link_name).np,
         )
-        visualizer.robot_state(robot.from_pinocchio_joint_positions(q))
+        visualizer.robot_state(robot_state)
 
     error_tool = casadi.Function(
         "etool",
@@ -51,7 +49,9 @@ def ik(config_name: str):
         [
             cpin.log6(
                 casadi_robot.data.oMf[
-                    robot.model.getFrameId(robot.groups[GROUP_NAME].tcp_link_name)
+                    robot.robot_model.model.getFrameId(
+                        robot.robot_model[GROUP_NAME].tcp_link_name
+                    )
                 ].inverse()
                 * cpin.SE3(transform_target_to_world),
             ).vector,
@@ -59,18 +59,18 @@ def ik(config_name: str):
     )
 
     opti = casadi.Opti()
-    var_q = opti.variable(robot.model.nq)
+    var_q = opti.variable(robot.robot_model.model.nq)
     totalcost = casadi.sumsqr(error_tool(var_q))
 
     constraints = casadi.vertcat(
         *[
             var_q[idx, 0] ** 2 + var_q[idx + 1, 0] ** 2 - 1
-            for idx in robot.continuous_joint_indices
+            for idx in robot.robot_model.continuous_joint_indices
         ],
     )
     if constraints.shape[0] > 0:
         opti.subject_to(constraints == 0)
-    opti.set_initial(var_q, pin.neutral(robot.model))
+    opti.set_initial(var_q, pin.neutral(robot.robot_model.model))
     opti.minimize(totalcost)
     opti.solver("ipopt")  # select the backend solver
     opti.callback(lambda i: callback(opti.debug.value(var_q)))
@@ -80,7 +80,8 @@ def ik(config_name: str):
     try:
         opti.solve_limited()
         sol_q = opti.value(var_q)
-        visualizer.robot_state(robot.from_pinocchio_joint_positions(sol_q))
+        robot_state = RobotState(robot.robot_model, sol_q)
+        visualizer.robot_state(robot_state)
     except Exception:
         sol_q = opti.debug.value(var_q)
         LOGGER.exception(f"ERROR in convergence, plotting debug info {sol_q=}.")
