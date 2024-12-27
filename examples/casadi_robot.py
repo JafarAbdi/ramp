@@ -1,5 +1,6 @@
 """Inverse kinematics using CasADi for a given robot configuration."""
 
+import sys
 import logging
 import pathlib
 
@@ -22,11 +23,19 @@ LOGGER = logging.getLogger(__name__)
 GROUP_NAME = "arm"
 
 
+class FakeVisualizer:
+    def robot_state(self, robot_state):
+        pass
+
+    def frame(self, name, pose):
+        pass
+
+
 def ik(config_name: str):
     """Inverse kinematics using CasADi for a given robot configuration."""
     robot = Robot(pathlib.Path(f"robots/{config_name}/configs.toml"))
     casadi_robot = CasADiRobot(robot)
-    visualizer = Visualizer(robot)
+    visualizer = Visualizer(robot) if "visualize" in sys.argv else FakeVisualizer()
 
     transform_target_to_world = pin.SE3(
         pin.utils.rpyToMatrix(np.pi, 0, np.pi / 2),

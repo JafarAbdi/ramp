@@ -1,6 +1,7 @@
 """Example of using the MotionPlanner functionality."""
 
 import pathlib
+import sys
 
 import numpy as np
 import pinocchio as pin
@@ -21,12 +22,17 @@ robots = [
     ("rrr/planar_configs", [1.0, -0.5, 1.57, 0.5, 0.25, 0.1]),
 ]
 
+visualize = False
+if len(sys.argv) > 1 and sys.argv[1] == "visualize":
+    visualize = True
+
 for robot_path, goal_state in robots:
-    input(
-        f"Press Enter to continue with robot {robot_path} and a collision object in the scene..."
-    )
     robot = Robot(pathlib.Path(f"robots/{robot_path}.toml"))
-    visualize = Visualizer(robot)
+    if visualize:
+        input(
+            f"Press Enter to continue with robot {robot_path} and a collision object in the scene..."
+        )
+        visualizer = Visualizer(robot)
 
     robot.add_object(
         "capsule",
@@ -34,9 +40,12 @@ for robot_path, goal_state in robots:
         pin.SE3(pin.Quaternion(0.707, 0.707, 0.0, 0.0), np.asarray([0.475, 0.0, 0.5])),
     )
     start_state = RobotState.from_named_state(robot.robot_model, group_name, "home")
-    visualize.robot_state(start_state)
-    input("Press Enter to plan a path to the goal state...")
+    if visualize:
+        visualizer.robot_state(start_state)
+        input("Press Enter to plan a path to the goal state...")
 
     planner = MotionPlanner(robot.robot_model, group_name)
     if path := planner.plan(start_state, goal_state, timeout=5.0):
-        visualize.robot_trajectory(path)
+        print(f"Found a path with {len(path)} waypoints.")
+        if visualize:
+            visualizer.robot_trajectory(path)

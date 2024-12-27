@@ -32,10 +32,15 @@ LOGGER = logging.getLogger(__name__)
 GROUP_NAME = "arm"
 
 
+class FakeVisualizer:
+    def robot_state(self, robot_state):
+        pass
+
+
 class IKDemo:
-    def __init__(self, config_name: str):
+    def __init__(self, config_name: str, visualize: bool):
         self.robot = Robot(pathlib.Path(f"robots/{config_name}/configs.toml"))
-        self.visualizer = Visualizer(self.robot)
+        self.visualizer = Visualizer(self.robot) if visualize else FakeVisualizer()
         self.initial_state = RobotState.from_named_state(
             self.robot.robot_model,
             GROUP_NAME,
@@ -48,18 +53,17 @@ class IKDemo:
         self.visualizer.robot_state(robot_state)
 
     def reset(self):
-        self.visualizer.robot_state(self.initial_state)
+        self.visualize(self.initial_state)
 
     def run(self):
         target_pose = [0.4, 0.0, 0.2, 0.0, 1.0, 0.0, 0.0]
         input("Press Enter to start IK using differential_ik solver")
-        robot_state = self.robot.differential_ik(
+        robot_state = self.initial_state.clone()
+        if not robot_state.differential_ik(
             GROUP_NAME,
             target_pose,
-            self.initial_state,
             iteration_callback=self.visualize,
-        )
-        if robot_state is None:
+        ):
             LOGGER.info("IK failed")
         else:
             LOGGER.info(f"IK succeeded: {robot_state}")
@@ -70,7 +74,7 @@ class IKDemo:
         input("Press Enter to start IK using trac-ik solver")
         self.reset()
         ik_solver = IKSolver(
-            self.robot.model_filename,
+            self.robot.robot_model.model_filename,
             self.robot.base_link,
             self.robot.robot_model[GROUP_NAME].tcp_link_name,
         )
@@ -94,7 +98,7 @@ def main():
     for config in configs:
         LOGGER.info(f"Running IK for {config}")
         input(f"Press Enter to start {config} IK")
-        demo = IKDemo(config)
+        demo = IKDemo(config, len(sys.argv) > 1 and sys.argv[1] == "visualize")
         demo.run()
 
 

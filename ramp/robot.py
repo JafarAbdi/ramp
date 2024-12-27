@@ -558,6 +558,7 @@ class RobotState:
             qpos: The joint positions. Initialized to the neutral position if None
             qvel: The joint velocities. Initialized to zeros if None
         """
+        assert qpos is None or len(qpos) == robot_model.model.nq
         self.robot_model = robot_model
         self.qpos = pinocchio.neutral(robot_model.model) if qpos is None else qpos
         self.qvel = np.zeros(robot_model.model.nv) if qvel is None else qvel
