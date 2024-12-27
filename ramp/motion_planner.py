@@ -76,7 +76,7 @@ def get_ompl_planners() -> list[str]:
     planners = []
     for obj in dir(module):
         planner_name = f"{module.__name__}.{obj}"
-        planner = eval(planner_name)  # noqa: S307, PGH001
+        planner = eval(planner_name)  # noqa: S307
         if isclass(planner) and issubclass(planner, ompl.base.Planner):
             planners.append(
                 planner_name.split("ompl.geometric.")[1],
@@ -303,17 +303,19 @@ class MotionPlanner:
             ),
         )
 
-        # TODO: Fix
         if self._robot_model[self._group_name].tcp_link_name is not None:
 
-            def pose_fn(state):
-                return self._robot.get_frame_pose(
-                    self.from_ompl_state(state),
+            def pose_fn(reference_robot_state, state):
+                reference_robot_state[self._group_name] = self.from_ompl_state(state)
+                return reference_robot_state.get_frame_pose(
                     self._robot_model[self._group_name].tcp_link_name,
                 ).np
 
             self._space.registerDefaultProjection(
-                ProjectionEvaluatorLinkPose(self._space, pose_fn),
+                ProjectionEvaluatorLinkPose(
+                    self._space,
+                    functools.partial(pose_fn, start_state.clone()),
+                ),
             )
 
         LOGGER.debug(self._setup.getStateSpace().settings())

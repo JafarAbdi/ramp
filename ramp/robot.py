@@ -485,6 +485,26 @@ class RobotState:
             ),
         )
 
+    def get_frame_pose(
+        self,
+        target_frame_name,
+    ) -> pinocchio.SE3:
+        """Get the pose of a frame."""
+        data = self.robot_model.model.createData()
+        target_frame_id = self.robot_model.model.getFrameId(target_frame_name)
+        pinocchio.framesForwardKinematics(
+            self.robot_model.model,
+            data,
+            self.qpos,
+        )
+        try:
+            return data.oMf[target_frame_id]
+        except IndexError as index_error:
+            raise pink.exceptions.FrameNotFound(
+                target_frame_name,
+                self.robot_model.model.frames,
+            ) from index_error
+
 
 class Robot:
     """Robot base class."""
@@ -702,28 +722,6 @@ class Robot:
                 tcp_link_name=tcp_link_name,
             )
         return groups
-
-    # TODO: Move to RobotState
-    def get_frame_pose(
-        self,
-        robot_state: RobotState,
-        target_frame_name,
-    ) -> pinocchio.SE3:
-        """Get the pose of a frame."""
-        data = self.robot_model.model.createData()
-        target_frame_id = self.robot_model.model.getFrameId(target_frame_name)
-        pinocchio.framesForwardKinematics(
-            self.robot_model.model,
-            data,
-            robot_state.qpos,
-        )
-        try:
-            return data.oMf[target_frame_id]
-        except IndexError as index_error:
-            raise pink.exceptions.FrameNotFound(
-                target_frame_name,
-                self.robot_model.model.frames,
-            ) from index_error
 
     # TODO: Move to a free function?
     def jacobian(

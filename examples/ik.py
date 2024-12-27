@@ -53,18 +53,18 @@ class IKDemo:
     def run(self):
         target_pose = [0.4, 0.0, 0.2, 0.0, 1.0, 0.0, 0.0]
         input("Press Enter to start IK using differential_ik solver")
-        target_joint_positions = self.robot.differential_ik(
+        robot_state = self.robot.differential_ik(
             GROUP_NAME,
             target_pose,
             self.initial_state,
             iteration_callback=self.visualize,
         )
-        if target_joint_positions is None:
+        if robot_state is None:
             LOGGER.info("IK failed")
         else:
-            LOGGER.info(f"IK succeeded: {target_joint_positions}")
+            LOGGER.info(f"IK succeeded: {robot_state}")
             LOGGER.info(
-                f"TCP Pose for target joint positions: {self.robot.get_frame_pose(target_joint_positions, self.robot.robot_model[GROUP_NAME].tcp_link_name)}",
+                f"TCP Pose for target joint positions: {robot_state.get_frame_pose(self.robot.robot_model[GROUP_NAME].tcp_link_name)}",
             )
 
         input("Press Enter to start IK using trac-ik solver")
@@ -84,7 +84,7 @@ class IKDemo:
             robot_state[GROUP_NAME] = target_joint_positions
             LOGGER.info(f"IK succeeded: {target_joint_positions}")
             LOGGER.info(
-                f"TCP Pose for target joint positions: {self.robot.get_frame_pose(robot_state, self.robot.robot_model[GROUP_NAME].tcp_link_name)}",
+                f"TCP Pose for target joint positions: {robot_state.get_frame_pose(self.robot.robot_model[GROUP_NAME].tcp_link_name)}",
             )
             self.visualize(robot_state)
 

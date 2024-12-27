@@ -43,16 +43,13 @@ def test_rrr():
 
     initial_state = RobotState.from_named_state(robot.robot_model, group_name, "home")
     # Using differential-ik
-    target_joint_positions = robot.differential_ik(
+    robot_state = robot.differential_ik(
         group_name,
         target_pose,
         initial_state,
     )
-    assert target_joint_positions is not None
-    pose = robot.get_frame_pose(
-        target_joint_positions,
-        robot.robot_model[group_name].tcp_link_name,
-    )
+    assert robot_state is not None
+    pose = robot_state.get_frame_pose(robot.robot_model[group_name].tcp_link_name)
     assert np.allclose(target_pose, pinocchio.SE3ToXYZQUAT(pose), atol=1e-3)
 
     # Should fail, rrr robot has end_effector_joint as revolute joint with [0.0, 0.0] limits (It can't rotate)

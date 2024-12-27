@@ -39,10 +39,7 @@ def ik(config_name: str):
         robot_state = RobotState(robot.robot_model, q)
         visualizer.frame(
             "current",
-            robot.get_frame_pose(
-                robot_state,
-                robot.robot_model[GROUP_NAME].tcp_link_name,
-            ).np,
+            robot_state.get_frame_pose(robot.robot_model[GROUP_NAME].tcp_link_name).np,
         )
         visualizer.robot_state(robot_state)
 
