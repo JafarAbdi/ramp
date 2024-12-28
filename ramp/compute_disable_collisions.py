@@ -7,6 +7,8 @@ import sys
 import pinocchio
 from rich.logging import RichHandler
 
+from ramp.pinocchio_utils import load_models
+
 logging.basicConfig(
     level="NOTSET",
     format="%(message)s",
@@ -14,6 +16,21 @@ logging.basicConfig(
     handlers=[RichHandler()],
 )
 LOGGER = logging.getLogger(__name__)
+
+
+def get_collision_pair_names(
+    model: pinocchio.Model,
+    collision_model: pinocchio.GeometryModel,
+    pair: pinocchio.CollisionPair,
+) -> tuple[str, str]:
+    """Get the collision pair names."""
+    frame_name1 = model.frames[
+        collision_model.geometryObjects[pair.first].parentFrame
+    ].name
+    frame_name2 = model.frames[
+        collision_model.geometryObjects[pair.second].parentFrame
+    ].name
+    return (frame_name1, frame_name2)
 
 
 class ComputeDisableCollisions:
@@ -25,18 +42,31 @@ class ComputeDisableCollisions:
         Args:
             model_filename: The model filename.
         """
-        models: tuple[
-            pinocchio.Model,
-            pinocchio.GeometryModel,
-            pinocchio.GeometryModel,
-        ] = pinocchio.shortcuts.buildModelsFromMJCF(
-            model_filename,
-            verbose=True,
-        )
-        self.model = models[0]
-        self.visual_model = models[1]
-        self.collision_model = models[2]
+        (model_filename, models) = load_models(model_filename, {})
+        self.model: pinocchio.Model = models[0]
+        self.visual_model: pinocchio.GeometryModel = models[1]
+        self.collision_model: pinocchio.GeometryModel = models[2]
         self.collision_model.addAllCollisionPairs()
+
+    def adjacents(self) -> list[tuple[str, str]]:
+        """Get the adjacent links."""
+
+        def get_body_parent(frame: pinocchio.Frame) -> pinocchio.Frame:
+            """Get the body parent."""
+            while (parent_frame := self.model.frames[frame.parentFrame]).type not in [
+                pinocchio.BODY,
+            ] and frame.name != "universe":
+                frame = parent_frame
+            return parent_frame
+
+        adjacent_pairs = set()
+        for geometry_object in self.collision_model.geometryObjects:
+            current_frame = self.model.frames[geometry_object.parentFrame]
+            parent_frame = get_body_parent(current_frame)
+            if parent_frame.name == "universe" or current_frame.name == "universe":
+                continue
+            adjacent_pairs.add((parent_frame.name, current_frame.name))
+        return list(adjacent_pairs)
 
     def check_collision(self, qpos):
         """Check the collision for a given configuration.
@@ -62,14 +92,38 @@ class ComputeDisableCollisions:
             cr = collision_data.collisionResults[k]
             cp = self.collision_model.collisionPairs[k]
             if cr.isCollision():
-                frame_name1 = self.model.frames[
-                    self.collision_model.geometryObjects[cp.first].parentFrame
-                ].name
-                frame_name2 = self.model.frames[
-                    self.collision_model.geometryObjects[cp.second].parentFrame
-                ].name
-                pairs[(frame_name1, frame_name2)] = cp
+                pairs[
+                    get_collision_pair_names(self.model, self.collision_model, cp)
+                ] = cp
         return pairs
+
+    def disable_collision(self, disable_collisions: list[tuple[str, str]]):
+        """Disable the collisions for the given pairs.
+
+        Args:
+            disable_collisions: The pairs to disable.
+        """
+        srdf = """
+<robot name="disable_collisions">
+    {disable_collisions}
+</robot>
+"""
+        LOGGER.info(
+            f"Number of collision pairs before removal: {len(self.collision_model.collisionPairs)}",
+        )
+        pinocchio.removeCollisionPairsFromXML(
+            self.model,
+            self.collision_model,
+            srdf.format(disable_collisions="\n".join(disable_collisions)),
+            verbose=True,
+        )
+
+        # TODO: Why this is not working???
+        # > for pair in default_pairs.values():
+        # >   compute_disable_collisions.collision_model.removeCollisionPair(pair)
+        LOGGER.info(
+            f"Number of collision pairs after removal: {len(self.collision_model.collisionPairs)}",
+        )
 
 
 def main():
@@ -84,10 +138,6 @@ def main():
         LOGGER.error(f"Model file {model_filename} does not exist")
         sys.exit(1)
 
-    if model_filename.suffix != ".xml":
-        LOGGER.error(f"Only mjcf files are supported! Input file {model_filename}")
-        sys.exit(1)
-
     LOGGER.info(f"Loading model from {model_filename}")
     compute_disable_collisions = ComputeDisableCollisions(model_filename)
 
@@ -96,37 +146,28 @@ def main():
     default_pairs = compute_disable_collisions.check_collision(
         pinocchio.neutral(compute_disable_collisions.model),
     )
-    srdf = """
-<robot name="disable_collisions">
-    {disable_collisions}
-</robot>
-"""
     disable_collisions = []
     for first, second in default_pairs:
         disable_collisions.append(
             f'<disable_collisions link1="{first}" link2="{second}" reason="Default"/>',
         )
     LOGGER.info("\n".join(disable_collisions))
-    LOGGER.info(
-        f"Number of collision pairs before removal: {len(compute_disable_collisions.collision_model.collisionPairs)}",
-    )
-    pinocchio.removeCollisionPairsFromXML(
-        compute_disable_collisions.model,
-        compute_disable_collisions.collision_model,
-        srdf.format(disable_collisions="\n".join(disable_collisions)),
-        verbose=True,
-    )
-
-    # TODO: Why this is not working???
-    # > for pair in default_pairs.values():
-    # >   compute_disable_collisions.collision_model.removeCollisionPair(pair)
-    LOGGER.info(
-        f"Number of collision pairs after removal: {len(compute_disable_collisions.collision_model.collisionPairs)}",
-    )
+    compute_disable_collisions.disable_collision(disable_collisions)
 
     # DISABLE ALL "ADJACENT" LINK COLLISIONS
+    disable_collisions = []
+    for first, second in compute_disable_collisions.adjacents():
+        disable_collisions.append(
+            f'<disable_collisions link1="{first}" link2="{second}" reason="Adjacent"/>',
+        )
+    LOGGER.info("\n".join(disable_collisions))
+    compute_disable_collisions.disable_collision(disable_collisions)
     # "ALWAYS" IN COLLISION: Compute the links that are always in collision
     # "NEVER" IN COLLISION: Get the pairs of links that are never in collision
+    for pair in compute_disable_collisions.collision_model.collisionPairs:
+        LOGGER.info(
+            f"Collision pair: {get_collision_pair_names(compute_disable_collisions.model, compute_disable_collisions.collision_model, pair)}",
+        )
 
     LOGGER.info("Done!")
 
