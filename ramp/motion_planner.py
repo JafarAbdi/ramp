@@ -23,10 +23,10 @@ from ramp.constants import (
     PINOCCHIO_TRANSLATION_JOINT,
     PINOCCHIO_UNBOUNDED_JOINT,
 )
-from ramp.robot import RobotModel, RobotState, check_collision
+from ramp.robot_model import RobotModel
+from ramp.robot_state import RobotState
 
 LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(level=os.getenv("LOG_LEVEL", "INFO").upper())
 
 
 def get_ompl_log_level(level: str) -> ompl.util.LogLevel:
@@ -399,9 +399,12 @@ class MotionPlanner:
             True if the state is valid, False otherwise.
         """
         ompl_state = self.as_ompl_state(robot_state)
-        return self._setup.getSpaceInformation().satisfiesBounds(
-            ompl_state(),
-        ) and not check_collision(robot_state)
+        return (
+            self._setup.getSpaceInformation().satisfiesBounds(
+                ompl_state(),
+            )
+            and not robot_state.check_collision()
+        )
 
     def parameterize(
         self,

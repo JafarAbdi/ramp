@@ -4,7 +4,8 @@ import meshcat
 import meshcat_shapes
 import pinocchio
 
-from ramp.robot import RobotModel, RobotState
+from ramp.robot_model import RobotModel
+from ramp.robot_state import RobotState
 
 
 class Visualizer:
