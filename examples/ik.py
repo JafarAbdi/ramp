@@ -7,8 +7,7 @@ import pathlib
 
 from rich.logging import RichHandler
 
-from ramp.robot import load_robot_model, RobotState
-from ramp.visualizer import Visualizer
+from ramp import load_robot_model, RobotState, Visualizer, setup_logging
 from ramp.ik_solver import IKSolver
 
 
@@ -19,14 +18,8 @@ import time
 import zenoh
 from rich.logging import RichHandler
 
-from mujoco_simulator_py.mujoco_interface import MuJoCoInterface
 
-logging.basicConfig(
-    level="NOTSET",
-    format="%(message)s",
-    datefmt="[%X]",
-    handlers=[RichHandler()],
-)
+setup_logging()
 LOGGER = logging.getLogger(__name__)
 
 GROUP_NAME = "arm"

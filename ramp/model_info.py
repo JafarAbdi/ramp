@@ -5,14 +5,11 @@ import pathlib
 import sys
 
 import pinocchio
-from rich.logging import RichHandler
 
-logging.basicConfig(
-    level="NOTSET",
-    format="%(message)s",
-    datefmt="[%X]",
-    handlers=[RichHandler()],
-)
+from ramp import setup_logging
+
+setup_logging()
+
 LOGGER = logging.getLogger(__name__)
 
 

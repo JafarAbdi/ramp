@@ -3,9 +3,7 @@ import pathlib
 import numpy as np
 import pinocchio as pin
 
-from ramp.robot import load_robot_model, RobotState
-from ramp.motion_planner import MotionPlanner
-from ramp.visualizer import Visualizer
+from ramp import load_robot_model, RobotState, MotionPlanner
 
 FILE_PATH = pathlib.Path(__file__).parent
 

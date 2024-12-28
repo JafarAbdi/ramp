@@ -6,7 +6,7 @@ import numpy as np
 import pinocchio
 import pytest
 
-from ramp.robot import load_robot_model, RobotState
+from ramp import load_robot_model, RobotState
 from ramp.ik_solver import IKSolver
 from ramp.exceptions import (
     MissingBaseLinkError,

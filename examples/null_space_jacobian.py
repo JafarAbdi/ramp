@@ -7,15 +7,9 @@ import numpy as np
 import pinocchio as pin
 from rich.logging import RichHandler
 
-from ramp.robot import load_robot_model, CasADiRobot, RobotState
-from ramp.visualizer import Visualizer
+from ramp import load_robot_model, CasADiRobot, RobotState, Visualizer, setup_logging
 
-logging.basicConfig(
-    level="NOTSET",
-    format="%(message)s",
-    datefmt="[%X]",
-    handlers=[RichHandler()],
-)
+setup_logging()
 LOGGER = logging.getLogger(__name__)
 
 

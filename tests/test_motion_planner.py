@@ -4,7 +4,7 @@ import numpy as np
 import pinocchio
 import pytest
 
-from ramp.robot import load_robot_model, RobotState
+from ramp import load_robot_model, RobotState, MotionPlanner, setup_logging
 from ramp.ik_solver import IKSolver
 from ramp.exceptions import (
     MissingBaseLinkError,
@@ -12,10 +12,11 @@ from ramp.exceptions import (
     MissingJointError,
     RobotDescriptionNotFoundError,
 )
-from ramp.motion_planner import MotionPlanner
 
 FILE_PATH = pathlib.Path(__file__).parent
 GROUP_NAME = "arm"
+
+setup_logging()
 
 
 def test_motion_planning():

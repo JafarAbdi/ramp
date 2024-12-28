@@ -12,12 +12,6 @@ from ramp.robot import Robot
 from ramp.mj_robot import MjRobot
 from ramp.ik_solver import IKSolver
 
-logging.basicConfig(
-    level="NOTSET",
-    format="%(message)s",
-    datefmt="[%X]",
-    handlers=[RichHandler()],
-)
 LOGGER = logging.getLogger(__name__)
 
 

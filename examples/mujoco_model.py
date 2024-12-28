@@ -6,16 +6,8 @@ import pathlib
 
 from rich.logging import RichHandler
 
-from ramp.robot import load_robot_model, RobotState
-from ramp.motion_planner import MotionPlanner
-from ramp.visualizer import Visualizer
+from ramp import load_robot_model, RobotState, MotionPlanner, Visualizer
 
-logging.basicConfig(
-    level="NOTSET",
-    format="%(message)s",
-    datefmt="[%X]",
-    handlers=[RichHandler()],
-)
 LOGGER = logging.getLogger(__name__)
 
 robot_model = load_robot_model(pathlib.Path("robots/acrobot/configs.toml"))
