@@ -86,15 +86,18 @@ class RobotModel:
         object.__setattr__(self, "joint_names", joint_names)
 
         acceleration_limits = []
-        for joint_name in self.joint_names:
-            if (
-                joint_acceleration_limit := joint_acceleration_limits.get(joint_name)
-            ) is None:
-                raise MissingAccelerationLimitError(
-                    self.joint_names,
-                    joint_acceleration_limits.keys(),
-                )
-            acceleration_limits.append(joint_acceleration_limit)
+        if joint_acceleration_limits:
+            for joint_name in self.joint_names:
+                if (
+                    joint_acceleration_limit := joint_acceleration_limits.get(
+                        joint_name
+                    )
+                ) is None:
+                    raise MissingAccelerationLimitError(
+                        self.joint_names,
+                        joint_acceleration_limits.keys(),
+                    )
+                acceleration_limits.append(joint_acceleration_limit)
         object.__setattr__(self, "acceleration_limits", np.asarray(acceleration_limits))
 
     def __getitem__(self, key):
@@ -271,7 +274,7 @@ def load_robot_model(config_path: Path) -> RobotModel:
         collision_model,
         visual_model,
         make_groups(model, configs),
-        configs["acceleration_limits"],
+        configs.get("acceleration_limits", {}),
     )
 
 

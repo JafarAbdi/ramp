@@ -424,6 +424,18 @@ class MotionPlanner:
         # This constant defines the maximum deviation allowed at those intermediate waypoints, in radians for revolute joints,
         # or meters for prismatic joints.
         max_deviation = 0.1
+        if self._robot_model.acceleration_limits.size == 0:
+            raise ValueError(
+                "Acceleration limits are required for trajectory parameterization"
+                "Make sure to specify acceleration limits in the robot model"
+                "\n[acceleration_limits]\n"
+                + "\n".join(
+                    [
+                        f"{joint_name} = X"
+                        for joint_name in self._robot_model.joint_names
+                    ]
+                ),
+            )
         trajectory = totg.Trajectory(
             totg.Path(
                 [waypoint[self._group_name] for waypoint in waypoints],
