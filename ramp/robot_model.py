@@ -90,7 +90,7 @@ class RobotModel:
             for joint_name in self.joint_names:
                 if (
                     joint_acceleration_limit := joint_acceleration_limits.get(
-                        joint_name
+                        joint_name,
                     )
                 ) is None:
                     raise MissingAccelerationLimitError(
@@ -222,25 +222,60 @@ def make_groups(model: pinocchio.Model, configs: dict) -> dict[str, GroupModel]:
 
 
 def load_robot_model(config_path: Path) -> RobotModel:
-    """Load the robot model from the config file.
+    """Load the robot model from a config file, URDF, XACRO, or MJCF's XML file.
 
     Args:
-        config_path: Path to the config file
+        config_path: Path to the config file, URDF, XACRO, or MJCF's XML file
 
     Returns:
         The robot model
     """
     if not config_path.exists():
-        msg = f"Config file does not exist: {config_path}"
+        msg = f"File does not exist: {config_path}"
         raise FileNotFoundError(msg)
-    configs = toml.load(config_path)
+    match config_path.suffix:
+        case ".toml":
+            configs = toml.load(config_path)
+            configs["robot"]["description"] = str(
+                config_path.parent
+                / get_robot_description_path(configs["robot"]["description"]),
+            )
+            if srdf_path := configs["robot"].get("disable_collisions"):
+                configs["robot"]["disable_collisions"] = str(
+                    config_path.parent / srdf_path,
+                )
+        case ".urdf" | ".xacro" | ".xml":
+            model_filename, (model, _, _) = load_models(
+                config_path,
+                {},
+            )
+            joint_names = []
+            for joint in model.names:
+                if joint == "universe":
+                    continue
+                joint_names.append(joint)
+            configs = {
+                "robot": {
+                    "description": str(model_filename),
+                    "base_link": "universe",
+                },
+                "group": {"default": {"joints": joint_names}},
+            }
+    return load_robot_model_from_configs(configs)
 
+
+def load_robot_model_from_configs(configs: dict) -> RobotModel:
+    """Load the robot model from the configs.
+
+    Args:
+        configs: Configs for the robot model
+
+    Returns:
+        The robot model
+    """
     mappings = configs["robot"].get("mappings", {})
     model_filename, (model, collision_model, visual_model) = load_models(
-        config_path.parent
-        / get_robot_description_path(
-            configs["robot"]["description"],
-        ),
+        Path(configs["robot"]["description"]),
         mappings=mappings,
     )
 
@@ -251,7 +286,7 @@ def load_robot_model(config_path: Path) -> RobotModel:
             model,
             collision_model,
             load_xacro(
-                config_path.parent / srdf_path,
+                Path(srdf_path),
                 mappings=mappings,
             ),
             verbose=verbose,

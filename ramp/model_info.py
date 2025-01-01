@@ -6,7 +6,7 @@ import sys
 
 import pinocchio
 
-from ramp import setup_logging
+from ramp import Visualizer, load_robot_model, setup_logging
 
 setup_logging()
 
@@ -39,6 +39,10 @@ def main():
     model, visual_model, collision_model = models
     LOGGER.info(f"Joints: {list(model.names)}")
     LOGGER.info(f"Frames: {[frame.name for frame in model.frames]}")
+
+    robot_model = load_robot_model(model_filename)
+    visualizer = Visualizer(robot_model)
+    visualizer.meshcat_visualizer.displayCollisions(visibility=True)
 
 
 if __name__ == "__main__":

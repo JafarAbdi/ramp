@@ -23,6 +23,22 @@ def test_configs():
     robot_model = load_robot_model(
         FILE_PATH / ".." / "robots" / "planar_rrr" / "configs.toml"
     )
+    robot_model = load_robot_model(
+        FILE_PATH / ".." / "robots" / "rrr" / "rrr.urdf.xacro"
+    )
+    robot_model = load_robot_model(FILE_PATH / ".." / "robots" / "rrr_mj" / "rrr.xml")
+    robot_model = load_robot_model(
+        FILE_PATH / ".." / "robots" / "ur5e" / "ur.urdf.xacro"
+    )
+    robot_model = load_robot_model(
+        FILE_PATH / ".." / "robots" / "kinova" / "kinova.urdf.xacro"
+    )
+    robot_model = load_robot_model(
+        FILE_PATH / ".." / "robots" / "fr3_robotiq" / "fr3.urdf.xacro"
+    )
+    robot_model = load_robot_model(
+        FILE_PATH / ".." / "robots" / "planar_rrr" / "robot.urdf.xacro"
+    )
 
 
 def test_rrr():

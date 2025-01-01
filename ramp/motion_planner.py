@@ -433,7 +433,7 @@ class MotionPlanner:
                     [
                         f"{joint_name} = X"
                         for joint_name in self._robot_model.joint_names
-                    ]
+                    ],
                 ),
             )
         trajectory = totg.Trajectory(
