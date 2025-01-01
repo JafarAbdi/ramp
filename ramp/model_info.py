@@ -19,28 +19,10 @@ def main():
         LOGGER.error(f"Usage: {sys.argv[0]} <model_filename>")
         sys.exit(1)
 
-    model_filename = pathlib.Path(sys.argv[1])
+    robot_model = load_robot_model(pathlib.Path(sys.argv[1]))
+    LOGGER.info(f"Joints: {list(robot_model.model.names)}")
+    LOGGER.info(f"Frames: {[frame.name for frame in robot_model.model.frames]}")
 
-    if not model_filename.exists():
-        LOGGER.error(f"Model file {model_filename} does not exist")
-        sys.exit(1)
-
-    if model_filename.suffix != ".xml":
-        LOGGER.error(f"Only mjcf files are supported! Input file {model_filename}")
-        sys.exit(1)
-
-    LOGGER.info(f"Loading model from {model_filename}")
-    models: tuple[pinocchio.Model, pinocchio.Model, pinocchio.Model] = (
-        pinocchio.shortcuts.buildModelsFromMJCF(
-            model_filename,
-            verbose=True,
-        )
-    )
-    model, visual_model, collision_model = models
-    LOGGER.info(f"Joints: {list(model.names)}")
-    LOGGER.info(f"Frames: {[frame.name for frame in model.frames]}")
-
-    robot_model = load_robot_model(model_filename)
     visualizer = Visualizer(robot_model)
     visualizer.meshcat_visualizer.displayCollisions(visibility=True)
 
