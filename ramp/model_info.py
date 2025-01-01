@@ -4,8 +4,6 @@ import logging
 import pathlib
 import sys
 
-import pinocchio
-
 from ramp import Visualizer, load_robot_model, setup_logging
 
 setup_logging()
