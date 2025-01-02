@@ -15,7 +15,7 @@ from .visualizer import Visualizer
 def setup_logging():
     """Setup logging for the package."""
     logging.basicConfig(
-        level=os.getenv("LOG_LEVEL", "NOTSET").upper(),
+        level=os.getenv("LOG_LEVEL", "INFO").upper(),
         format="%(message)s",
         datefmt="[%X]",
         handlers=[RichHandler()],
