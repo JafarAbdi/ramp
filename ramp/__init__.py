@@ -7,7 +7,7 @@ import os
 from rich.logging import RichHandler
 
 from .motion_planner import MotionPlanner
-from .robot_model import RobotModel, load_robot_model
+from .robot_model import CasADiRobot, RobotModel, load_robot_model
 from .robot_state import RobotState
 from .visualizer import Visualizer
 
@@ -15,7 +15,7 @@ from .visualizer import Visualizer
 def setup_logging():
     """Setup logging for the package."""
     logging.basicConfig(
-        level=os.getenv("LOG_LEVEL", "NOTSET").upper(),
+        level=os.getenv("LOG_LEVEL", "INFO").upper(),
         format="%(message)s",
         datefmt="[%X]",
         handlers=[RichHandler()],
@@ -35,5 +35,6 @@ __all__ = [
     "Visualizer",
     "RobotState",
     "RobotModel",
+    "CasADiRobot",
     "load_robot_model",
 ]

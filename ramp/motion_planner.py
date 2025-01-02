@@ -327,10 +327,10 @@ class MotionPlanner:
 
         LOGGER.debug(self._setup.getStateSpace().settings())
 
-        if not self.is_state_valid(start_state):
+        if not self.is_state_valid(start_state, verbose=True):
             LOGGER.error("Start state is invalid - in collision or out of bounds")
             return None
-        if not self.is_state_valid(goal_state):
+        if not self.is_state_valid(goal_state, verbose=True):
             LOGGER.error("Goal state is invalid - in collision or out of bounds")
             return None
         self._setup.setStartAndGoalStates(
@@ -389,22 +389,20 @@ class MotionPlanner:
         LOGGER.info(f"Found solution with {len(solution)} waypoints")
         return solution
 
-    def is_state_valid(self, robot_state: RobotState) -> bool:
+    def is_state_valid(self, robot_state: RobotState, *, verbose=False) -> bool:
         """Check if the state is valid, i.e. not in collision or out of bounds.
 
         Args:
             robot_state: The robot state to check.
+            verbose: Whether to log additional information.
 
         Returns:
             True if the state is valid, False otherwise.
         """
         ompl_state = self.as_ompl_state(robot_state)
-        return (
-            self._setup.getSpaceInformation().satisfiesBounds(
-                ompl_state(),
-            )
-            and not robot_state.check_collision()
-        )
+        return self._setup.getSpaceInformation().satisfiesBounds(
+            ompl_state(),
+        ) and not robot_state.check_collision(verbose=verbose)
 
     def parameterize(
         self,

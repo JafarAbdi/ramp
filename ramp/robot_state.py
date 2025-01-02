@@ -107,6 +107,27 @@ class RobotState:
             ],
         )
 
+    def randomize(self, group_name: str | None = None):
+        """Randomize the joint positions."""
+        qpos = get_converted_qpos(
+            self.robot_model,
+            pinocchio.randomConfiguration(self.robot_model.model),
+        )
+        groups = (
+            [(group_name, self.robot_model[group_name])]
+            if group_name
+            else self.robot_model.groups.items()
+        )
+        for name, group in groups:
+            self[name] = qpos[group.joint_position_indices]
+
+    @classmethod
+    def from_random(cls, robot_model: RobotModel):
+        """Create a robot state from random joint positions."""
+        rs = cls(robot_model)
+        rs.randomize()
+        return rs
+
     @classmethod
     def from_actuated_qpos(cls, robot_model: RobotModel, joint_positions: np.ndarray):
         """Create a robot state from actuated joint positions."""

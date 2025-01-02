@@ -26,13 +26,11 @@ class FakeVisualizer:
         pass
 
 
-def ik(config_name: str):
+def ik(config_name: str, visualize: bool):
     """Inverse kinematics using CasADi for a given robot configuration."""
     robot_model = load_robot_model(pathlib.Path(f"robots/{config_name}/configs.toml"))
     casadi_robot = CasADiRobot(robot_model)
-    visualizer = (
-        Visualizer(robot_model) if "visualize" in sys.argv else FakeVisualizer()
-    )
+    visualizer = Visualizer(robot_model) if visualize else FakeVisualizer()
 
     transform_target_to_world = pin.SE3(
         pin.utils.rpyToMatrix(np.pi, 0, np.pi / 2),
@@ -92,5 +90,7 @@ def ik(config_name: str):
 
 
 for config_name in ["panda", "kinova", "ur5e", "fr3_robotiq"]:
-    input(f"Press Enter to start {config_name} IK")
-    ik(config_name)
+    visualize = "visualize" in sys.argv
+    if visualize:
+        input(f"Press Enter to start {config_name} IK")
+    ik(config_name, visualize)

@@ -35,6 +35,7 @@ class IKDemo:
         self.robot_model = load_robot_model(
             pathlib.Path(f"robots/{config_name}/configs.toml")
         )
+        self.prompt = visualize
         self.visualizer = (
             Visualizer(self.robot_model) if visualize else FakeVisualizer()
         )
@@ -54,7 +55,8 @@ class IKDemo:
 
     def run(self):
         target_pose = [0.4, 0.0, 0.2, 0.0, 1.0, 0.0, 0.0]
-        input("Press Enter to start IK using differential_ik solver")
+        if self.prompt:
+            input("Press Enter to start IK using differential_ik solver")
         robot_state = self.initial_state.clone()
         if not robot_state.differential_ik(
             GROUP_NAME,
@@ -68,7 +70,8 @@ class IKDemo:
                 f"TCP Pose for target joint positions: {robot_state.get_frame_pose(self.robot_model[GROUP_NAME].tcp_link_name)}",
             )
 
-        input("Press Enter to start IK using trac-ik solver")
+        if self.prompt:
+            input("Press Enter to start IK using trac-ik solver")
         self.reset()
         ik_solver = IKSolver(
             self.robot_model.model_filename,
@@ -94,7 +97,6 @@ def main():
     configs = ["panda", "rrr", "kinova", "ur5e", "fr3_robotiq"]
     for config in configs:
         LOGGER.info(f"Running IK for {config}")
-        input(f"Press Enter to start {config} IK")
         demo = IKDemo(config, len(sys.argv) > 1 and sys.argv[1] == "visualize")
         demo.run()
 
