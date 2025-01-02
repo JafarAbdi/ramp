@@ -1,9 +1,0 @@
-[robot]
-base_link = "Base"
-description = "../../external/mujoco_menagerie/trs_so_arm100/so_arm100.xml"
-disable_collisions = "so_arm100.srdf.xacro"
-
-[group.arm]
-joints = ["Rotation", "Pitch", "Elbow", "Wrist_Pitch", "Wrist_Roll"]
-tcp_link_name = "Fixed_Jaw"
-named_states = { home = [0.0, -1.57, 1.57, 1.57, -1.57] }

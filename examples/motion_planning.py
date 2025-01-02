@@ -18,7 +18,6 @@ robots = [
     ("rrr/configs", [0.0, 2.0, 1.4]),
     ("rrr/floating_configs", [1.0, 0.5, 1.0, 1.0, 0.0, 0.0, 0.0, 0.5, 0.25, 0.1]),
     ("rrr/planar_configs", [1.0, -0.5, 1.57, 0.5, 0.25, 0.1]),
-    ("so_arm100/configs", [1.0, -0.5, 1.57, 0.5, 0.25, 0.1]),
 ]
 
 visualize = False

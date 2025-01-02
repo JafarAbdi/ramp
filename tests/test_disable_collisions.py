@@ -1,23 +1,28 @@
 import pathlib
-from ramp.compute_disable_collisions import ComputeDisableCollisions
+from ramp.compute_disable_collisions import (
+    adjacent_collisions,
+    default_collisions,
+    DisabledReason,
+)
+from ramp import load_robot_model
 
 
 FILE_PATH = pathlib.Path(__file__).parent
 
 
 def test_disable_collisions():
-    cdc = ComputeDisableCollisions(
+    robot_model = load_robot_model(
         FILE_PATH / ".." / "robots" / "rrr" / "rrr.urdf.xacro"
     )
-    assert set(cdc.adjacents()) == set(
+    assert set(adjacent_collisions(robot_model)) == set(
         [
-            ("base_link", "link1"),
-            ("link1", "link2"),
-            ("link2", "link3"),
-            ("link3", "end_effector"),
+            ("base_link", "link1", DisabledReason.ADJACENT),
+            ("link1", "link2", DisabledReason.ADJACENT),
+            ("link2", "link3", DisabledReason.ADJACENT),
+            ("link3", "end_effector", DisabledReason.ADJACENT),
         ]
     )
-    cdc = ComputeDisableCollisions(
+    robot_model = load_robot_model(
         FILE_PATH
         / ".."
         / "external"
@@ -26,16 +31,18 @@ def test_disable_collisions():
         / "examples"
         / "acrobot.xml"
     )
-    assert set(cdc.adjacents()) == set([("upper_link", "lower_link")])
+    assert set(adjacent_collisions(robot_model)) == set(
+        [("upper_link", "lower_link", DisabledReason.ADJACENT)]
+    )
 
-    cdc = ComputeDisableCollisions(
+    robot_model = load_robot_model(
         FILE_PATH / ".." / "robots" / "planar_rrr" / "robot.urdf.xacro"
     )
     # Note that unlike rrr, planar_rrr's end_effector does not have a collision geometry
-    assert set(cdc.adjacents()) == set(
+    assert set(adjacent_collisions(robot_model)) == set(
         [
-            ("base_link", "link1"),
-            ("link1", "link2"),
-            ("link2", "link3"),
+            ("base_link", "link1", DisabledReason.ADJACENT),
+            ("link1", "link2", DisabledReason.ADJACENT),
+            ("link2", "link3", DisabledReason.ADJACENT),
         ]
     )

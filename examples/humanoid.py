@@ -34,7 +34,9 @@ if path := planner.plan(
     if visualize:
         visualizer.robot_trajectory(path)
 
-input("Press Enter to continue...")
+if visualize:
+    input("Press Enter to continue...")
+
 planner = MotionPlanner(robot_model, RIGHT_GROUP_NAME)
 if path := planner.plan(
     robot_state,

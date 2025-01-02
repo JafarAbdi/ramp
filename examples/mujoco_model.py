@@ -23,7 +23,8 @@ if visualize:
     visualizer = Visualizer(robot_model)
     visualizer.robot_state(start_state)
 
-input("Press Enter to continue...")
+if visualize:
+    input("Press Enter to continue...")
 planner = MotionPlanner(robot_model, group_name)
 if path := planner.plan(start_state, goal_state):
     # For visualizing the path parameterization - visualizer.robot_trajectory(path)

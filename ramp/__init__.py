@@ -7,7 +7,7 @@ import os
 from rich.logging import RichHandler
 
 from .motion_planner import MotionPlanner
-from .robot_model import RobotModel, load_robot_model
+from .robot_model import RobotModel, load_robot_model, CasADiRobot
 from .robot_state import RobotState
 from .visualizer import Visualizer
 
@@ -35,5 +35,6 @@ __all__ = [
     "Visualizer",
     "RobotState",
     "RobotModel",
+    "CasADiRobot",
     "load_robot_model",
 ]
