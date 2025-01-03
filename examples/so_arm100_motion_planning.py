@@ -57,12 +57,14 @@ mj_interface.add_decorative_geometry(
     "floor", "box", (0.0, 0.0, -0.025), (1.25, 1.25, 0.025)
 )
 
+goal_state = RobotState(robot_model)
+goal_state.randomize()
 planner = MotionPlanner(robot_model, group_name)
 for _ in range(100):
     goal_state.randomize()
     if path := planner.plan(
         mj_interface.read(),
-        goal_state.actuated_qpos(),
+        goal_state,
         timeout=5.0,
     ):
         optimized_path = generate_time_optimal_trajectory(

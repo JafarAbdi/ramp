@@ -101,9 +101,7 @@ def from_ompl_state(space: ob.CompoundStateSpace, state: ob.State) -> list[float
             case ob.STATE_SPACE_SO3:
                 joint_positions.extend([substate.x, substate.y, substate.z, substate.w])
             case (
-                ob.STATE_SPACE_SE2
-                | ob.STATE_SPACE_DUBINS
-                | ob.STATE_SPACE_REEDS_SHEPP
+                ob.STATE_SPACE_SE2 | ob.STATE_SPACE_DUBINS | ob.STATE_SPACE_REEDS_SHEPP
             ):
                 joint_positions.extend(
                     [substate.getX(), substate.getY(), substate.getYaw()],
@@ -407,7 +405,7 @@ class MotionPlanner:
     def plan(
         self,
         start_state: RobotState,
-        group_goal_qpos: np.ndarray | list[float],
+        goal_state: RobotState,
         timeout: float = 1.0,
         planner: str | None = None,
     ) -> list[RobotState] | None:
@@ -415,18 +413,18 @@ class MotionPlanner:
 
         Args:
             start_state: The start robot state.
-            group_goal_qpos: The goal joint positions.
+            goal_state: The goal robot state.
             timeout: Timeout for planner
             planner: The planner to use.
 
         Returns:
             The trajectory as a list of joint positions or None if no solution was found.
         """
-        assert len(group_goal_qpos) == len(
-            self._robot_model[self._group_name].joint_position_indices,
-        )
+        # Use start state as reference state for state validity checker and projection evaluator
+        group_goal_qpos = goal_state[self._group_name]
         goal_state = start_state.clone()
         goal_state.set_group_qpos(self._group_name, group_goal_qpos)
+
         self._setup.clear()
         self._setup_state_validity_checker(start_state)
         self._setup_projection_evaluator(start_state)

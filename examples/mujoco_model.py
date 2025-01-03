@@ -15,7 +15,7 @@ robot_model = load_robot_model(pathlib.Path("robots/acrobot/configs.toml"))
 
 group_name = "arm"
 start_state = RobotState.from_actuated_qpos(robot_model, [0.0])
-goal_state = [3.14]
+goal_state = RobotState.from_actuated_qpos(robot_model, [3.14])
 visualize = False
 if len(sys.argv) > 1 and sys.argv[1] == "visualize":
     visualize = True
