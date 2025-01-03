@@ -25,9 +25,12 @@ if len(sys.argv) > 1 and sys.argv[1] == "visualize":
     visualizer.robot_state(robot_state)
 
 planner = MotionPlanner(robot_model, LEFT_GROUP_NAME)
+goal_state = robot_state.clone()
+goal_state[LEFT_GROUP_NAME] = [0.5, 0.5, 0.5, 0.5]
+
 if path := planner.plan(
     robot_state,
-    [0.5, 0.5, 0.5, 0.5],
+    goal_state,
     timeout=5.0,
 ):
     print(f"Found a path with {len(path)} waypoints")
@@ -38,9 +41,11 @@ if visualize:
     input("Press Enter to continue...")
 
 planner = MotionPlanner(robot_model, RIGHT_GROUP_NAME)
+goal_state = robot_state.clone()
+goal_state[RIGHT_GROUP_NAME] = [-0.5, -0.5, -0.5, -0.5]
 if path := planner.plan(
     robot_state,
-    [-0.5, -0.5, -0.5, -0.5],
+    goal_state,
     timeout=5.0,
 ):
     print(f"Found a path with {len(path)} waypoints")

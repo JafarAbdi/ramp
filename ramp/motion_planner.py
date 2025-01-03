@@ -303,24 +303,24 @@ class MotionPlanner:
     def plan(
         self,
         start_state: RobotState,
-        group_goal_qpos: np.ndarray | list[float],
+        goal_state: RobotState,
         timeout: float = 1.0,
     ) -> list[RobotState] | None:
         """Plan a trajectory from start to goal.
 
         Args:
             start_state: The start robot state.
-            group_goal_qpos: The goal joint positions.
+            goal_state: The goal robot state.
             timeout: Timeout for planner
 
         Returns:
             The trajectory as a list of joint positions or None if no solution was found.
         """
-        assert len(group_goal_qpos) == len(
-            self._robot_model[self._group_name].joint_position_indices,
-        )
+        # Use start state as reference state for state validity checker and projection evaluator
+        group_goal_qpos = goal_state[self._group_name]
         goal_state = start_state.clone()
         goal_state[self._group_name] = group_goal_qpos
+
         self._setup.clear()
         self._setup_state_validity_checker(start_state)
         self._setup_projection_evaluator(start_state)
