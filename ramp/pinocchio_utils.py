@@ -65,19 +65,26 @@ def joint_ids_to_name_indices(model: pinocchio.Model) -> dict[int, int]:
     return joint_id_to_indices
 
 
+def joint_nq(joint: pinocchio.JointModel) -> int:
+    """Return the number of joint positions."""
+    joint_type = joint.shortname()
+    # Continuous joints have 2 q, it's represented as cos(theta), sin(theta)
+    if re.match(PINOCCHIO_UNBOUNDED_JOINT, joint_type):
+        return 1
+    if (
+        joint_type == PINOCCHIO_PLANAR_JOINT
+    ):  # x, y, theta (Theta is continuous so 2 values, but we will handle it in the (as/from)_pinocchio_joint_position_continuous)
+        return 3
+    return joint.nq
+
+
+def joint_indices(joint: pinocchio.JointModel):
+    """Return the joint indices."""
+    return [joint.idx_q + idx for idx in range(joint_nq(joint))]
+
+
 def joint_ids_to_indices(model: pinocchio.Model) -> dict[int, list[int]]:
     """Return a mapping from joint ids to joint indices."""
-
-    def joint_indices(joint: pinocchio.JointModel):
-        """Return the joint indices."""
-        joint_type = joint.shortname()
-        if re.match(PINOCCHIO_UNBOUNDED_JOINT, joint_type):
-            return [joint.idx_q]
-        if (
-            joint_type == PINOCCHIO_PLANAR_JOINT
-        ):  # x, y, theta (Theta is continuous so 2 values, but we will handle it in the (as/from)_pinocchio_joint_position_continuous)
-            return [joint.idx_q + idx for idx in range(3)]
-        return [joint.idx_q + idx for idx in range(joint.nq)]
 
     # Joint id != Joint indices, so we need a mapping between them
     joint_id_to_indices = {}

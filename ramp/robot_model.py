@@ -54,6 +54,7 @@ class RobotModel:
     collision_model: pinocchio.GeometryModel
     visual_model: pinocchio.GeometryModel
     groups: dict[str, GroupModel]
+    motion_model: dict
     joint_acceleration_limits: InitVar[dict[str, float]]
     acceleration_limits: np.ndarray = field(init=False)
     joint_names: list[str] = field(init=False)
@@ -309,6 +310,7 @@ def load_robot_model_from_configs(configs: dict) -> RobotModel:
         collision_model,
         visual_model,
         make_groups(model, configs),
+        configs.get("motion_model", {}),
         configs.get("acceleration_limits", {}),
     )
 
