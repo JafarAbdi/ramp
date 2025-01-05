@@ -6,6 +6,7 @@ from dataclasses import InitVar, dataclass, field
 from pathlib import Path
 
 import casadi
+import hppfcl
 import numpy as np
 import pinocchio
 import pinocchio.visualize
@@ -221,7 +222,10 @@ def make_groups(model: pinocchio.Model, configs: dict) -> dict[str, GroupModel]:
     return groups
 
 
-def load_robot_model(config_path: Path) -> RobotModel:
+def load_robot_model(
+    config_path: Path,
+    motion_models: dict | None = None,
+) -> RobotModel:
     """Load the robot model from a config file, URDF, XACRO, or MJCF's XML file.
 
     Args:
@@ -259,7 +263,13 @@ def load_robot_model(config_path: Path) -> RobotModel:
                     "description": str(model_filename),
                     "base_link": "universe",
                 },
-                "group": {"default": {"joints": joint_names}},
+                "group": {
+                    "default": {
+                        "joints": joint_names,
+                        "tcp_link_name": "mobile_base",
+                    },
+                },
+                "motion_model": motion_models or {},
             }
     return load_robot_model_from_configs(configs)
 
@@ -418,3 +428,40 @@ class CasADiRobot:
             self.model.getFrameId(target_frame_name),
             reference_frame,
         )
+
+
+def create_capsule(radius, height):
+    return hppfcl.Capsule(radius, height)
+
+
+def create_mesh(filename):
+    mesh_loader = hppfcl.MeshLoader()
+    return mesh_loader.load(filename)
+
+
+def create_cylinder(radius, height):
+    return hppfcl.Cylinder(radius, height)
+
+
+def create_box(size: tuple[float, float, float]):
+    return hppfcl.Box(*size)
+
+
+def create_sphere(radius):
+    return hppfcl.Sphere(radius)
+
+
+def create_ellipsoid(size: tuple[float, float, float]):
+    return hppfcl.Ellipsoid(*size)
+
+
+def create_capsule(radius, height):
+    return hppfcl.Capsule(radius, height)
+
+
+def create_geometry_object(
+    name: str,
+    geometry: hppfcl.CollisionGeometry,
+    pose: pinocchio.SE3,
+):
+    return pinocchio.GeometryObject(name, 0, pose, geometry)

@@ -6,7 +6,10 @@ import sys
 import numpy as np
 import pinocchio as pin
 
-from ramp import load_robot_model, RobotState, MotionPlanner, Visualizer
+from ramp import load_robot_model, RobotState, MotionPlanner, Visualizer, setup_logging
+from ramp.robot_model import create_geometry_object, create_capsule
+
+setup_logging()
 
 group_name = "arm"
 robots = [
@@ -34,9 +37,13 @@ for robot_path, goal_state in robots:
 
     start_state = RobotState.from_named_state(robot_model, group_name, "home")
     start_state.add_object(
-        "capsule",
-        pin.GeometryObject.CreateCapsule(0.1, 0.4),
-        pin.SE3(pin.Quaternion(0.707, 0.707, 0.0, 0.0), np.asarray([0.475, 0.0, 0.5])),
+        create_geometry_object(
+            "capsule",
+            create_capsule(0.1, 0.4),
+            pin.SE3(
+                pin.Quaternion(0.707, 0.707, 0.0, 0.0), np.asarray([0.475, 0.0, 0.5])
+            ),
+        )
     )
     if visualize:
         visualizer.robot_state(start_state)
