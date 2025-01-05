@@ -17,6 +17,11 @@ named_states = { home = [
   0.0, # joint3
 ] }
 
+[motion_model]
+# Maybe create differential_drive as well?
+planar_joint = "reeds_shepp"
+# planar_joint = "dubins"
+
 [acceleration_limits]
 joint1 = 1.0
 joint2 = 1.0
