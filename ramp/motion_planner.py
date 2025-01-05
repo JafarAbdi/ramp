@@ -26,6 +26,7 @@ from ramp.constants import (
 from ramp.robot_model import RobotModel
 from ramp.robot_state import RobotState
 from ramp.pinocchio_utils import joint_nq
+from ramp.anytime_path_shortening import AnytimePathShortening
 import pinocchio
 
 
@@ -489,6 +490,18 @@ class MotionPlanner:
         self._setup_state_validity_checker(start_state)
         self._setup_projection_evaluator(start_state)
 
+        # si = self._setup.getSpaceInformation()
+        # planner = AnytimePathShortening(si)
+        # planner.add_planner(og.EST(si))
+        # planner.add_planner(og.EST(si))
+        # planner.add_planner(og.EST(si))
+        # planner.add_planner(og.KPIECE1(si))
+        # planner.add_planner(og.KPIECE1(si))
+        # planner.add_planner(og.KPIECE1(si))
+        # planner.set_hybridize(False)
+        # planner.set_shortcut(False)
+        # self._setup.setPlanner(planner)
+
         LOGGER.debug(self._setup.getStateSpace().settings())
 
         if not self.is_state_valid(start_state, verbose=True):
@@ -497,10 +510,28 @@ class MotionPlanner:
         if not self.is_state_valid(goal_state, verbose=True):
             LOGGER.error("Goal state is invalid - in collision or out of bounds")
             return None
+
+        # objective = PathClearanceObjective(
+        #     self._setup.getSpaceInformation(), start_state, self._group_name
+        # )
+        objective = ob.PathLengthOptimizationObjective(self._setup.getSpaceInformation())
+        # objective = ob.MultiOptimizationObjective(self._setup.getSpaceInformation())
+        # objective.addObjective(
+        #     ob.PathLengthOptimizationObjective(self._setup.getSpaceInformation()), 5.0
+        # )
+        # objective.addObjective(
+        #     PathClearanceObjective(
+        #         self._setup.getSpaceInformation(), start_state, self._group_name
+        #     ),
+        #     1.0,
+        # )
+        objective.setCostToGoHeuristic(ob.CostToGoHeuristic(ob.goalRegionCostToGo))
+        self._setup.setOptimizationObjective(objective)
         self._setup.setStartAndGoalStates(
             self.as_ompl_state(start_state),
             self.as_ompl_state(goal_state),
         )
+
         solve_result = self._setup.solve(timeout)
         if not solve_result:
             LOGGER.info("Did not find solution!")
