@@ -306,6 +306,39 @@ class RobotState:
                 ),
             )
 
+    def compute_distance(self, object1: str, object2: str) -> pinocchio.DistanceResult:
+        """Compute the distance between two objects.
+
+        Args:
+            object1: The first object name
+            object2: The second object name
+
+        Returns:
+            The distance result
+        """
+        data = self.robot_model.model.createData()
+        collision_data = self.robot_model.collision_model.createData()
+        pinocchio.updateGeometryPlacements(
+            self.robot_model.model,
+            data,
+            self.robot_model.collision_model,
+            collision_data,
+            self.qpos,
+        )
+        object1_id = self.robot_model.collision_model.getGeometryId(object1)
+        object2_id = self.robot_model.collision_model.getGeometryId(object2)
+        pair_idx = self.robot_model.collision_model.findCollisionPair(
+            pinocchio.CollisionPair(
+                object1_id,
+                object2_id,
+            ),
+        )
+        return pinocchio.computeDistance(
+            self.robot_model.collision_model,
+            collision_data,
+            pair_idx,
+        )
+
     def check_collision(self, *, verbose=False):
         """Check if the robot is in collision with the given joint positions.
 

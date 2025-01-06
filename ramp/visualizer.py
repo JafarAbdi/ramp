@@ -2,6 +2,7 @@
 
 import meshcat
 import meshcat_shapes
+import numpy as np
 import pinocchio
 
 from ramp.robot_model import RobotModel
@@ -95,3 +96,15 @@ class Visualizer:
         """
         meshcat_shapes.frame(self.meshcat_visualizer.viewer[frame_name])
         self.meshcat_visualizer.viewer[frame_name].set_transform(transform)
+
+    def point(self, point_name, position):
+        """Visualize a point.
+
+        Args:
+            point_name: The point name to visualize.
+            position: The (3,) position of the point.
+        """
+        meshcat_shapes.point(self.meshcat_visualizer.viewer[point_name])
+        transform = np.eye(4)
+        transform[:3, 3] = position
+        self.meshcat_visualizer.viewer[point_name].set_transform(transform)

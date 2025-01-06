@@ -1,32 +1,67 @@
-"""Mujoco robot class."""
+"""Hardware interface for reading and writing robot state."""
 
-import logging
-import os
-from collections import Counter
-from pathlib import Path
+from abc import ABC, abstractmethod
 
 import mujoco
 import numpy as np
+import zenoh
+from mujoco_simulator_py.mujoco_interface import MuJoCoInterface
 
 from ramp.exceptions import MissingJointError
-
-LOGGER = logging.getLogger(__name__)
-LOGGER.setLevel(level=os.getenv("LOG_LEVEL", "INFO").upper())
-
-GROUP_NAME = "arm"
+from ramp.robot_model import RobotModel
+from ramp.robot_state import RobotState
 
 
-# Inherit from mujoco interface??
-class MjRobot:
-    """Mujoco robot class."""
+class HardwareInterface(ABC):
+    """Abstract class for hardware interface."""
 
-    def __init__(self, model_filename: Path, groups: dict):
-        """Initialize the Mujoco robot.
+    def __init__(self, robot_model: RobotModel):
+        """Initialize hardware interface."""
+        self.robot_model = robot_model
+
+    @abstractmethod
+    def read(self) -> RobotState:
+        """Read robot state."""
+
+    @abstractmethod
+    def write(self, joint_names: list[str], ctrl: np.ndarray):
+        """Write control commands to robot."""
+
+
+class MockHardwareInterface(HardwareInterface):
+    """Mock hardware interface for testing."""
+
+    def __init__(self, robot_model: RobotModel, initial_robot_state: RobotState):
+        """Initialize mock hardware interface.
 
         Args:
-            model_filename: The Mujoco model filename.
-            groups: The groups of the robot.
+            robot_model: Robot model.
+            initial_robot_state: Initial robot state.
         """
+        super().__init__(robot_model)
+        self._robot_state = initial_robot_state.clone()
+
+    def read(self) -> RobotState:
+        """Read robot state."""
+        return self._robot_state.clone()
+
+    def write(self, joint_names: list[str], ctrl: np.ndarray):
+        """Write control commands to robot."""
+        msg = "Mock hardware interface does not support writing."
+        raise NotImplementedError(msg)
+
+
+class MuJoCoHardwareInterface(HardwareInterface):
+    """MuJoCo hardware interface."""
+
+    def __init__(self, robot_model: RobotModel, keyframe: str | None = None):
+        """Initialize MuJoCo hardware interface.
+
+        Args:
+            robot_model: Robot model.
+            keyframe: Keyframe for the mujoco simulation.
+        """
+        super().__init__(robot_model)
         # Current assumption: The model file is in the same directory as the scene file
         # ROBOT.xml -> Used for pinocchio since it doesn't support builtin textures
         # or having a worldbody without a body tag
@@ -35,7 +70,8 @@ class MjRobot:
         #   <geom name="floor" size="0 0 0.05" type="plane" material="groundplane"/>
         # </worldbody>
         # scene.xml -> Used for mujoco simulator
-        self.model_filename = model_filename.parent / "scene.xml"
+        assert robot_model.model_filename.suffix == ".xml"
+        self.model_filename = self.robot_model.model_filename.parent / "scene.xml"
         self.model: mujoco.MjModel = mujoco.MjModel.from_xml_path(
             str(self.model_filename),
         )
@@ -82,7 +118,7 @@ class MjRobot:
         self.link_names = [self.model.body(i).name for i in range(self.model.nbody)]
         # Group -> Joint indices
         self.group_actuated_joint_indices = {}
-        for group_name, group in groups.items():
+        for group_name, group in self.robot_model.groups.items():
             actuated_joint_indices = []
             for joint_name in group.joints:
                 try:
@@ -93,58 +129,36 @@ class MjRobot:
                 actuated_joint_indices.append(
                     joint.qposadr[0],
                 )  # TODO: How about multi-dof joints?
-            # TODO: Handle gripper actuated joint
             self.group_actuated_joint_indices[group_name] = np.asarray(
                 actuated_joint_indices,
             )
 
-        self.joint_names = []
-        for group in groups.values():
-            self.joint_names.extend(group.joints)
-            if group.gripper is not None:
-                self.joint_names.append(group.gripper.actuated_joint)
+            zenoh.init_log_from_env_or("error")
+            self._mj_interface = MuJoCoInterface()
+            self._mj_interface.reset(
+                model_filename=self.model_filename,
+                keyframe=keyframe,
+            )
 
-    def check_collision(self, joint_positions, *, verbose=False):
-        """Check if the robot is in collision with the given joint positions.
-
-        Args:
-            joint_positions: Joint positions of the robot.
-            verbose: Whether to print the collision results.
-
-        Returns:
-            True if the robot is in collision, False otherwise.
-        """
-        data = mujoco.MjData(self.model)
-        data.qpos = self.as_mj_joint_positions(joint_positions)
-        mujoco.mj_forward(self.model, data)
-        if verbose:
-            contacts = Counter()
-            for contact in data.contact:
-                body1_id = self.model.geom_bodyid[contact.geom1]
-                body1_name = mujoco.mj_id2name(
-                    self.model,
-                    mujoco.mjtObj.mjOBJ_BODY,
-                    body1_id,
-                )
-                body2_id = self.model.geom_bodyid[contact.geom2]
-                body2_name = mujoco.mj_id2name(
-                    self.model,
-                    mujoco.mjtObj.mjOBJ_BODY,
-                    body2_id,
-                )
-                contacts[(body1_name, body2_name)] += 1
-            LOGGER.debug(f"Contacts: {contacts}")
-        return data.ncon > 0
-
-    def from_mj_joint_positions(self, q):
+    def from_mj_joint_positions(self, q) -> np.ndarray:
         """Convert mujoco joint positions to joint positions."""
-        joint_positions = np.copy(q)
-        return joint_positions[self.group_actuated_joint_indices[GROUP_NAME]]
+        return np.concatenate(
+            [
+                q[self.group_actuated_joint_indices[group_name]]
+                for group_name in self.robot_model.groups
+            ],
+        )
 
     def as_mj_joint_positions(self, joint_positions):
         """Convert joint positions to mujoco joint positions."""
         q = self.model.qpos0.copy()
-        q[self.group_actuated_joint_indices[GROUP_NAME]] = joint_positions
+        start_index = 0
+        for group_name, group in self.robot_model.groups.items():
+            # TODO: Multi-dof joints
+            q[self.group_actuated_joint_indices[group_name]] = joint_positions[
+                start_index : start_index + len(group.joints)
+            ]
+            start_index += len(group.joints)
         if self.mimic_joint_indices.size != 0:
             q[self.mimic_joint_indices] = (
                 q[self.mimicked_joint_indices] * self.mimic_joint_multipliers
@@ -163,36 +177,21 @@ class MjRobot:
             )
         }
 
-    def get_frame_pose(self, joint_positions, target_frame_name):
-        """Get the pose of a frame."""
-        data: mujoco.MjData = mujoco.MjData(self.model)
-        data.qpos = joint_positions
-        mujoco.mj_forward(self.model, data)
-        target_frame_id = mujoco.mj_name2id(
-            self.model,
-            mujoco.mjtObj.mjOBJ_BODY,
-            target_frame_name,
+    def read(self) -> RobotState:
+        """Read robot state."""
+        qpos = np.asarray(self._mj_interface.qpos())
+        # > qvel = self._mj_interface.qvel()
+        # > qvel=self.from_mj_joint_positions(qvel),
+        return RobotState.from_actuated_qpos(
+            self.robot_model,
+            self.from_mj_joint_positions(qpos),
         )
-        transform = np.eye(4)
-        transform[:3, :3] = data.xmat[target_frame_id].reshape(3, 3)
-        transform[:3, 3] = data.xpos[target_frame_id]
-        return transform
 
-    @property
-    def position_limits(self) -> list[tuple[float, float]]:
-        """Return the joint limits.
-
-        Returns:
-            List of tuples of (lower, upper) joint limits.
-        """
-        # TODO: Handle continuous joints (limited = 0)
-        return self.model.jnt_range[self.group_actuated_joint_indices[GROUP_NAME]]
-
-    @property
-    def effort_limits(self) -> list[float]:
-        """Return the effort limits.
-
-        Returns:
-            List of effort limits.
-        """
-        return self.model.effortLimit[self.group_actuated_joint_indices[GROUP_NAME]]
+    def write(self, joint_names: list[str], ctrl: np.ndarray):
+        """Write control commands to robot."""
+        self._mj_interface.ctrl(
+            self.as_mj_ctrl(
+                joint_names,
+                ctrl,
+            ),
+        )
