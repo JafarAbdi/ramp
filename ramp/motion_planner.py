@@ -23,6 +23,7 @@ from ramp.constants import (
     PINOCCHIO_TRANSLATION_JOINT,
     PINOCCHIO_UNBOUNDED_JOINT,
 )
+from ramp.pinocchio_utils import joint_nq
 from ramp.robot_model import RobotModel
 from ramp.robot_state import RobotState
 
@@ -84,6 +85,51 @@ def get_ompl_planners() -> list[str]:
     return planners
 
 
+# Actually the type is CompoundStateInternal
+def from_ompl_state(space: ob.CompoundStateSpace, state: ob.State) -> list[float]:
+    """Convert ompl state to joint positions."""
+    assert isinstance(space, ob.CompoundStateSpace)
+    assert isinstance(state, ob.CompoundStateInternal)
+    joint_positions = []
+    for space_idx in range(space.getSubspaceCount()):
+        subspace = space.getSubspace(space_idx)
+        substate = state[space_idx]
+        match subspace.getType():
+            case ob.STATE_SPACE_REAL_VECTOR:
+                joint_positions.extend(
+                    [substate[i] for i in range(subspace.getDimension())],
+                )
+            case ob.STATE_SPACE_SO3:
+                joint_positions.extend([substate.x, substate.y, substate.z, substate.w])
+            case (
+                ob.STATE_SPACE_SE2
+                | ob.STATE_SPACE_DUBINS
+                | ob.STATE_SPACE_REEDS_SHEPP
+            ):
+                joint_positions.extend(
+                    [substate.getX(), substate.getY(), substate.getYaw()],
+                )
+            case ob.STATE_SPACE_SO2:
+                joint_positions.append(substate.value)
+            case ob.STATE_SPACE_SE3:
+                rotation = substate.rotation()
+                joint_positions.extend(
+                    [
+                        substate.getX(),
+                        substate.getY(),
+                        substate.getZ(),
+                        rotation.x,
+                        rotation.y,
+                        rotation.z,
+                        rotation.w,
+                    ],
+                )
+            case _:
+                msg = f"Unsupported space: {subspace}"
+                raise ValueError(msg)
+    return joint_positions
+
+
 # MoveIt has ProjectionEvaluatorLinkPose/ProjectionEvaluatorJointValue
 class ProjectionEvaluatorLinkPose(ob.ProjectionEvaluator):
     """OMPL projection evaluator."""
@@ -125,20 +171,19 @@ class ProjectionEvaluatorLinkPose(ob.ProjectionEvaluator):
 class MotionPlanner:
     """A wrapper for OMPL planners."""
 
-    def __init__(self, robot_model: RobotModel, group_name: str, planner=None) -> None:
+    def __init__(self, robot_model: RobotModel, group_name: str) -> None:
         """Initialize the motion planner.
 
         Args:
             robot_model: The robot model.
             group_name: The group to plan for.
-            planner: The planner to use.
         """
         self._robot_model = robot_model
         self._group_name = group_name
         self._space = ob.CompoundStateSpace()
-        self.state_spaces = []
         for idx in robot_model[group_name].joint_indices:
             joint = robot_model.model.joints[int(idx)]
+            joint_name = robot_model.model.names[int(idx)]
             joint_type = joint.shortname()
             if (
                 re.match(PINOCCHIO_REVOLUTE_JOINT, joint_type)
@@ -157,13 +202,11 @@ class MotionPlanner:
                 )
                 space.setBounds(bounds)
                 self._space.addSubspace(space, 1.0)
-                self.state_spaces.append(ob.STATE_SPACE_REAL_VECTOR)
             elif re.match(PINOCCHIO_UNBOUNDED_JOINT, joint_type):
                 self._space.addSubspace(
                     ob.SO2StateSpace(),
                     1.0,
                 )
-                self.state_spaces.append(ob.STATE_SPACE_SO2)
             elif joint_type == PINOCCHIO_PLANAR_JOINT:
                 bounds = ob.RealVectorBounds(2)
                 bounds.setLow(0, -10.0)  # robot.model.lowerPositionLimit[joint.idx_q])
@@ -176,37 +219,38 @@ class MotionPlanner:
                     1,
                     10.0,
                 )  # robot.model.upperPositionLimit[joint.idx_q + 1])
-                space = ob.SE2StateSpace()
-                space.setBounds(bounds)
-                self._space.addSubspace(space, 1.0)
-                self.state_spaces.append(ob.STATE_SPACE_SE2)
+                if robot_model.motion_model.get(joint_name) == "dubins":
+                    space = ob.DubinsStateSpace(
+                        1.0,  # Turning radius
+                        isSymmetric=True,  # If this is false, it's struggling to find a solution
+                    )
+                    space.setBounds(bounds)
+                    self._space.addSubspace(space, 1.0)
+                elif robot_model.motion_model.get(joint_name) == "reeds_shepp":
+                    space = ob.ReedsSheppStateSpace(1.0)  # turning radius
+                    space.setBounds(bounds)
+                    self._space.addSubspace(space, 1.0)
+                else:
+                    space = ob.SE2StateSpace()
+                    space.setBounds(bounds)
+                    self._space.addSubspace(space, 1.0)
             elif joint_type == PINOCCHIO_SPHERICAL_JOINT:
                 self._space.addSubspace(ob.SO3StateSpace(), 1.0)
-                self.state_spaces.append(ob.STATE_SPACE_SO3)
             elif joint_type == PINOCCHIO_TRANSLATION_JOINT:
                 self._space.addSubspace(ob.RealVectorStateSpace(3), 1.0)
-                self.state_spaces.append(ob.STATE_SPACE_REAL_VECTOR)
             elif joint_type == PINOCCHIO_FREEFLYER_JOINT:
                 # TODO: Parameterize -10/10
                 bounds = ob.RealVectorBounds(3)
-                bounds.setLow(0, -10.0)
-                bounds.setHigh(0, 10.0)
-                bounds.setLow(1, -10.0)
-                bounds.setHigh(1, 10.0)
-                bounds.setLow(2, -10.0)
-                bounds.setHigh(2, 10.0)
+                bounds.setLow(-10)
+                bounds.setHigh(10)
                 space = ob.SE3StateSpace()
                 space.setBounds(bounds)
                 self._space.addSubspace(space, 1.0)
-                self.state_spaces.append(ob.STATE_SPACE_SE3)
             else:
                 msg = f"Unknown joint type: '{joint_type}' for joint '{robot_model.model.names[int(idx)]}'"
                 raise ValueError(msg)
 
         self._setup = og.SimpleSetup(self._space)
-
-        if planner is not None:
-            self._setup.setPlanner(self._get_planner(planner))
 
     def _get_planner(self, planner):
         try:
@@ -221,59 +265,67 @@ class MotionPlanner:
 
     def as_ompl_state(self, robot_state: RobotState) -> ob.State:
         """Convert joint positions to ompl state."""
-        state = ob.State(self._space)
-        for i, joint_position in enumerate(robot_state[self._group_name]):
-            state[i] = joint_position
-        return state
-
-    def from_ompl_state(self, state: ob.State) -> list[float]:
-        """Convert ompl state to joint positions."""
-        joint_positions = []
-        for idx, (substate, space) in enumerate(
-            zip(
-                [state[i] for i in range(len(self.state_spaces))],
-                self.state_spaces,
-                strict=True,
-            ),
-        ):
-            if space == ob.STATE_SPACE_REAL_VECTOR:
-                joint_positions.extend(
-                    [
-                        substate[i]
-                        for i in range(self._space.getSubspace(idx).getDimension())
-                    ],
-                )
-            elif space == ob.STATE_SPACE_SO3:
-                joint_positions.extend([substate.x, substate.y, substate.z, substate.w])
-            elif space == ob.STATE_SPACE_SE2:
-                joint_positions.extend(
-                    [substate.getX(), substate.getY(), substate.getYaw()],
-                )
-            elif space == ob.STATE_SPACE_SO2:
-                joint_positions.append(substate.value)
-            elif space == ob.STATE_SPACE_SE3:
-                rotation = substate.rotation()
-                joint_positions.extend(
-                    [
-                        substate.getX(),
-                        substate.getY(),
-                        substate.getZ(),
-                        rotation.x,
-                        rotation.y,
-                        rotation.z,
-                        rotation.w,
-                    ],
-                )
-            else:
-                msg = f"Unknown state space: {space}"
-                raise ValueError(msg)
-        return joint_positions
+        state = ob.CompoundState(self._space)
+        internal_state = state()
+        i = 0
+        joint_positions = robot_state[self._group_name]
+        for space_idx, space in enumerate(self._space.getSubspaces()):
+            # TODO: No need to have this, we can get the space dimension from state
+            joint_index = self._robot_model[self._group_name].joint_indices[space_idx]
+            size = joint_nq(self._robot_model.model.joints[int(joint_index)])
+            match space.getType():
+                case ob.STATE_SPACE_SO2:
+                    substate = internal_state[space_idx]
+                    substate.value = joint_positions[i]
+                    i += size
+                case (
+                    ob.STATE_SPACE_SE2
+                    | ob.STATE_SPACE_DUBINS
+                    | ob.STATE_SPACE_REEDS_SHEPP
+                ):
+                    substate = internal_state[space_idx]
+                    substate.setX(joint_positions[i])
+                    substate.setY(joint_positions[i + 1])
+                    substate.setYaw(joint_positions[i + 2])
+                    i += size
+                case ob.STATE_SPACE_SO3:
+                    substate = internal_state[space_idx]
+                    substate.x = joint_positions[i]
+                    substate.y = joint_positions[i + 1]
+                    substate.z = joint_positions[i + 2]
+                    substate.w = joint_positions[i + 3]
+                    i += size
+                case ob.STATE_SPACE_REAL_VECTOR:
+                    substate = internal_state[space_idx]
+                    assert size == self._space.getSubspace(space_idx).getDimension()
+                    for idx in range(size):
+                        substate[idx] = joint_positions[i + idx]
+                    i += size
+                case ob.STATE_SPACE_SE3:
+                    substate = internal_state[space_idx]
+                    substate.setX(joint_positions[i])
+                    substate.setY(joint_positions[i + 1])
+                    substate.setZ(joint_positions[i + 2])
+                    rotation = substate.rotation()
+                    rotation.x = joint_positions[i + 3]
+                    rotation.y = joint_positions[i + 4]
+                    rotation.z = joint_positions[i + 5]
+                    rotation.w = joint_positions[i + 6]
+                    i += size
+                case _:
+                    msg = f"Unsupported space: {space}"
+                    raise ValueError(msg)
+        assert i == len(joint_positions)
+        return ob.State(state)
 
     def _setup_state_validity_checker(self, reference_state: RobotState):
         """Set the state validity checker."""
 
         def is_ompl_state_valid(reference_robot_state, state):
-            reference_robot_state[self._group_name] = self.from_ompl_state(state)
+            reference_robot_state[self._group_name] = from_ompl_state(
+                self._space,
+                state,
+            )
             return self.is_state_valid(reference_robot_state)
 
         self._setup.setStateValidityChecker(
@@ -287,7 +339,10 @@ class MotionPlanner:
         if self._robot_model[self._group_name].tcp_link_name is not None:
 
             def pose_fn(reference_robot_state, state):
-                reference_robot_state[self._group_name] = self.from_ompl_state(state)
+                reference_robot_state[self._group_name] = from_ompl_state(
+                    self._space,
+                    state,
+                )
                 return reference_robot_state.get_frame_pose(
                     self._robot_model[self._group_name].tcp_link_name,
                 ).np
@@ -305,6 +360,7 @@ class MotionPlanner:
         start_state: RobotState,
         group_goal_qpos: np.ndarray | list[float],
         timeout: float = 1.0,
+        planner: str | None = None,
     ) -> list[RobotState] | None:
         """Plan a trajectory from start to goal.
 
@@ -312,6 +368,7 @@ class MotionPlanner:
             start_state: The start robot state.
             group_goal_qpos: The goal joint positions.
             timeout: Timeout for planner
+            planner: The planner to use.
 
         Returns:
             The trajectory as a list of joint positions or None if no solution was found.
@@ -337,6 +394,10 @@ class MotionPlanner:
             self.as_ompl_state(start_state),
             self.as_ompl_state(goal_state),
         )
+
+        if planner is not None:
+            self._setup.setPlanner(self._get_planner(planner))
+
         solve_result = self._setup.solve(timeout)
         if not solve_result:
             LOGGER.info("Did not find solution!")
@@ -384,7 +445,10 @@ class MotionPlanner:
         solution = []
         reference_robot_state = start_state.clone()
         for state in simplified_path.getStates():
-            reference_robot_state[self._group_name] = self.from_ompl_state(state)
+            reference_robot_state[self._group_name] = from_ompl_state(
+                self._space,
+                state,
+            )
             solution.append(reference_robot_state.clone())
         LOGGER.info(f"Found solution with {len(solution)} waypoints")
         return solution

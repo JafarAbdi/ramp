@@ -280,7 +280,7 @@ class RobotState:
         return False
 
     # TODO: This will modify the robot_model, we need a better way to handle objects
-    def add_object(self, name: str, geometry_object, pose: pinocchio.SE3):
+    def add_object(self, geometry_object: pinocchio.GeometryObject):
         """Add an object to the robot's collision model.
 
         Args:
@@ -288,23 +288,22 @@ class RobotState:
             geometry_object: Geometry object
             pose: Pose of the object
         """
-        geometry_object.name = name
-        geometry_object.parentJoint = 0
-        geometry_object.meshColor = np.array([1.0, 0.0, 0.0, 1.0])
-        geometry_object.placement = pose
         geometry_object_collision_id = (
             self.robot_model.collision_model.addGeometryObject(
                 geometry_object,
             )
         )
-        self.geometry_objects[name] = geometry_object_collision_id
+        self.geometry_objects[geometry_object.name] = geometry_object_collision_id
         self.robot_model.visual_model.addGeometryObject(geometry_object)
         for geometry_id in range(
             len(self.robot_model.collision_model.geometryObjects)
             - len(self.geometry_objects),
         ):
             self.robot_model.collision_model.addCollisionPair(
-                pinocchio.CollisionPair(self.geometry_objects[name], geometry_id),
+                pinocchio.CollisionPair(
+                    self.geometry_objects[geometry_object.name],
+                    geometry_id,
+                ),
             )
 
     def check_collision(self, *, verbose=False):
