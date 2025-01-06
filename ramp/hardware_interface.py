@@ -155,8 +155,8 @@ class MuJoCoHardwareInterface(HardwareInterface):
 
     def read(self) -> RobotState:
         qpos = np.asarray(self._mj_interface.qpos())
-        # qvel = self._mj_interface.qvel()
-        # qvel=self.from_mj_joint_positions(qvel),
+        # > qvel = self._mj_interface.qvel()
+        # > qvel=self.from_mj_joint_positions(qvel),
         return RobotState.from_actuated_qpos(
             self.robot_model,
             self.from_mj_joint_positions(qpos),
