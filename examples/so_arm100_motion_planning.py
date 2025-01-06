@@ -36,11 +36,11 @@ start_state = RobotState.from_actuated_qpos(robot_model, HOME)
 if visualize:
     visualizer.robot_state(start_state)
 
+goal_state = RobotState(robot_model)
+goal_state.randomize()
 planner = MotionPlanner(robot_model, group_name)
 for _ in range(10):
-    if path := planner.plan(
-        start_state, RobotState.from_random(robot_model).actuated_qpos, timeout=5.0
-    ):
+    if path := planner.plan(start_state, goal_state, timeout=5.0):
         if visualize:
             input("Press Enter to visualize the path to goal state...")
             visualizer.robot_trajectory(path)
