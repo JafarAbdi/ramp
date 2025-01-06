@@ -158,7 +158,6 @@ class PathClearanceObjective(ob.StateCostIntegralObjective):
         )
 
 
-
 # MoveIt has ProjectionEvaluatorLinkPose/ProjectionEvaluatorJointValue
 class ProjectionEvaluatorLinkPose(ob.ProjectionEvaluator):
     """OMPL projection evaluator."""

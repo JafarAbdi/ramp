@@ -306,7 +306,16 @@ class RobotState:
                 ),
             )
 
-    def compute_distances(self) -> list[pinocchio.DistanceResult]:
+    def compute_distance(self, object1: str, object2: str) -> pinocchio.DistanceResult:
+        """Compute the distance between two objects.
+
+        Args:
+            object1: The first object name
+            object2: The second object name
+
+        Returns:
+            The distance result
+        """
         data = self.robot_model.model.createData()
         collision_data = self.robot_model.collision_model.createData()
         pinocchio.updateGeometryPlacements(
@@ -316,29 +325,19 @@ class RobotState:
             collision_data,
             self.qpos,
         )
-        indices = []
-        object_id = self.robot_model.collision_model.getGeometryId(
-            "hand_0",
-        )  # Need a better way to get the object id
-        for geometry_object in self.geometry_objects.values():
-            indices.append(
-                self.robot_model.collision_model.findCollisionPair(
-                    pinocchio.CollisionPair(
-                        geometry_object,
-                        object_id,
-                    ),
-                ),
-            )
-        results = []
-        for index in indices:
-            results.append(
-                pinocchio.computeDistance(
-                    self.robot_model.collision_model,
-                    collision_data,
-                    index,
-                ),
-            )
-        return results
+        object1_id = self.robot_model.collision_model.getGeometryId(object1)
+        object2_id = self.robot_model.collision_model.getGeometryId(object2)
+        pair_idx = self.robot_model.collision_model.findCollisionPair(
+            pinocchio.CollisionPair(
+                object1_id,
+                object2_id,
+            ),
+        )
+        return pinocchio.computeDistance(
+            self.robot_model.collision_model,
+            collision_data,
+            pair_idx,
+        )
 
     def check_collision(self, *, verbose=False):
         """Check if the robot is in collision with the given joint positions.
