@@ -268,7 +268,6 @@ def load_robot_model(
                 "group": {
                     "default": {
                         "joints": joint_names,
-                        "tcp_link_name": "mobile_base",
                     },
                 },
                 "motion_model": motion_models or {},

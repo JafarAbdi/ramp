@@ -5,9 +5,10 @@ import sys
 
 import numpy as np
 import pinocchio as pin
+import hppfcl
 
 from ramp import load_robot_model, RobotState, MotionPlanner, Visualizer, setup_logging
-from ramp.robot_model import create_geometry_object, create_capsule
+from ramp.robot_model import create_geometry_object
 
 setup_logging()
 
@@ -39,7 +40,7 @@ for robot_path, goal_state in robots:
     start_state.add_object(
         create_geometry_object(
             "capsule",
-            create_capsule(0.1, 0.4),
+            hppfcl.Capsule(0.1, 0.4),
             pin.SE3(
                 pin.Quaternion(0.707, 0.707, 0.0, 0.0), np.asarray([0.475, 0.0, 0.5])
             ),

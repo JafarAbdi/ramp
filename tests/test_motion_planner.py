@@ -4,7 +4,9 @@ import numpy as np
 import pinocchio
 import pytest
 
+import hppfcl
 from ramp import load_robot_model, RobotState, MotionPlanner, setup_logging
+from ramp.robot_model import create_geometry_object
 from ramp.ik_solver import IKSolver
 from ramp.exceptions import (
     MissingBaseLinkError,
@@ -36,12 +38,14 @@ def test_motion_planning():
     planner = MotionPlanner(robot_model, GROUP_NAME)
     start_state = RobotState.from_named_state(robot_model, GROUP_NAME, "home")
     start_state.add_object(
-        "capsule",
-        pinocchio.GeometryObject.CreateCapsule(0.1, 0.4),
-        pinocchio.SE3(
-            pinocchio.Quaternion(0.707, 0.707, 0.0, 0.0),
-            np.asarray([0.475, 0.0, 0.5]),
-        ),
+        create_geometry_object(
+            "capsule",
+            hppfcl.Capsule(0.1, 0.4),
+            pinocchio.SE3(
+                pinocchio.Quaternion(0.707, 0.707, 0.0, 0.0),
+                np.asarray([0.475, 0.0, 0.5]),
+            ),
+        )
     )
     plan = planner.plan(start_state, [1.0, -0.5, 1.57, 0.5, 0.25, 0.1], timeout=5.0)
     assert plan is not None, "Expected a plan to be found"
@@ -53,12 +57,14 @@ def test_motion_planning():
     planner = MotionPlanner(robot_model, GROUP_NAME)
     start_state = RobotState.from_named_state(robot_model, GROUP_NAME, "home")
     start_state.add_object(
-        "capsule",
-        pinocchio.GeometryObject.CreateCapsule(0.1, 0.4),
-        pinocchio.SE3(
-            pinocchio.Quaternion(0.707, 0.707, 0.0, 0.0),
-            np.asarray([0.475, 0.0, 0.5]),
-        ),
+        create_geometry_object(
+            "capsule",
+            hppfcl.Capsule(0.1, 0.4),
+            pinocchio.SE3(
+                pinocchio.Quaternion(0.707, 0.707, 0.0, 0.0),
+                np.asarray([0.475, 0.0, 0.5]),
+            ),
+        )
     )
     plan = planner.plan(
         start_state, [1.0, 0.5, 1.0, 1.0, 0.0, 0.0, 0.0, 0.5, 0.25, 0.1], timeout=5.0
