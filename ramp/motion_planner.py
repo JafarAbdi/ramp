@@ -102,9 +102,7 @@ def from_ompl_state(space: ob.CompoundStateSpace, state: ob.State) -> list[float
             case ob.STATE_SPACE_SO3:
                 joint_positions.extend([substate.x, substate.y, substate.z, substate.w])
             case (
-                ob.STATE_SPACE_SE2
-                | ob.STATE_SPACE_DUBINS
-                | ob.STATE_SPACE_REEDS_SHEPP
+                ob.STATE_SPACE_SE2 | ob.STATE_SPACE_DUBINS | ob.STATE_SPACE_REEDS_SHEPP
             ):
                 joint_positions.extend(
                     [substate.getX(), substate.getY(), substate.getYaw()],
@@ -128,6 +126,36 @@ def from_ompl_state(space: ob.CompoundStateSpace, state: ob.State) -> list[float
                 msg = f"Unsupported space: {subspace}"
                 raise ValueError(msg)
     return joint_positions
+
+
+class PathClearanceObjective(ob.StateCostIntegralObjective):
+    def __init__(
+        self,
+        si: ob.SpaceInformation,
+        robot_state: RobotState,
+        group_name: str,
+    ) -> None:
+        super(PathClearanceObjective, self).__init__(si, False)
+        self.si_ = si
+        self.robot_state = robot_state.clone()
+        self._group_name = group_name
+
+    def stateCost(self, s):
+        self.robot_state[self._group_name] = from_ompl_state(
+            self.si_.getStateSpace(),
+            s,
+        )
+        return ob.Cost(
+            1.0
+            / (
+                np.sum(
+                    self.robot_state.compute_distances(
+                        "mobile_base_0", "sphere_0x0x0"
+                    )  # TODO: Make it as a lot
+                )
+                + 0.1
+            )
+        )
 
 
 # MoveIt has ProjectionEvaluatorLinkPose/ProjectionEvaluatorJointValue
