@@ -55,6 +55,7 @@ class RobotModel:
     collision_model: pinocchio.GeometryModel
     visual_model: pinocchio.GeometryModel
     groups: dict[str, GroupModel]
+    motion_model: dict
     joint_acceleration_limits: InitVar[dict[str, float]]
     acceleration_limits: np.ndarray = field(init=False)
     joint_names: list[str] = field(init=False)
@@ -230,6 +231,7 @@ def load_robot_model(
 
     Args:
         config_path: Path to the config file, URDF, XACRO, or MJCF's XML file
+        motion_models: Motion models for the robot (only used for URDF, XACRO, or MJCF's XML files)
 
     Returns:
         The robot model
@@ -319,6 +321,7 @@ def load_robot_model_from_configs(configs: dict) -> RobotModel:
         collision_model,
         visual_model,
         make_groups(model, configs),
+        configs.get("motion_model", {}),
         configs.get("acceleration_limits", {}),
     )
 
@@ -430,33 +433,13 @@ class CasADiRobot:
         )
 
 
-def create_capsule(radius, height):
-    return hppfcl.Capsule(radius, height)
-
-
-def create_mesh(filename):
-    mesh_loader = hppfcl.MeshLoader()
-    return mesh_loader.load(filename)
-
-
-def create_cylinder(radius, height):
-    return hppfcl.Cylinder(radius, height)
-
-
-def create_box(size: tuple[float, float, float]):
-    return hppfcl.Box(*size)
-
-
-def create_sphere(radius):
-    return hppfcl.Sphere(radius)
-
-
-def create_ellipsoid(size: tuple[float, float, float]):
-    return hppfcl.Ellipsoid(*size)
-
-
-def create_capsule(radius, height):
-    return hppfcl.Capsule(radius, height)
+# > hppfcl.Capsule(radius, height)
+# > mesh_loader = hppfcl.MeshLoader()
+# > mesh_loader.load(filename)
+# > hppfcl.Cylinder(radius, height)
+# > hppfcl.Box([x, y, z])
+# > hppfcl.Sphere(radius)
+# > hppfcl.Ellipsoid([x, y, z])
 
 
 def create_geometry_object(
@@ -464,4 +447,16 @@ def create_geometry_object(
     geometry: hppfcl.CollisionGeometry,
     pose: pinocchio.SE3,
 ):
-    return pinocchio.GeometryObject(name, 0, pose, geometry)
+    """Create a geometry object.
+
+    Args:
+        name: The name of the geometry object
+        geometry: hppfcl collision geometry
+        pose: The pose of the geometry object
+
+    Returns:
+        The geometry object
+    """
+    geometry_object = pinocchio.GeometryObject(name, 0, pose, geometry)
+    geometry_object.meshColor = np.array([0.0, 1.0, 0.0, 1.0])
+    return geometry_object

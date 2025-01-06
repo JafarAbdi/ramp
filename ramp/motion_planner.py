@@ -23,6 +23,7 @@ from ramp.constants import (
     PINOCCHIO_TRANSLATION_JOINT,
     PINOCCHIO_UNBOUNDED_JOINT,
 )
+from ramp.pinocchio_utils import joint_nq
 from ramp.robot_model import RobotModel
 from ramp.robot_state import RobotState
 
@@ -127,6 +128,8 @@ def from_ompl_state(space: ob.CompoundStateSpace, state: ob.State) -> list[float
                 msg = f"Unsupported space: {subspace}"
                 raise ValueError(msg)
     return joint_positions
+
+
 # MoveIt has ProjectionEvaluatorLinkPose/ProjectionEvaluatorJointValue
 class ProjectionEvaluatorLinkPose(ob.ProjectionEvaluator):
     """OMPL projection evaluator."""
@@ -168,19 +171,19 @@ class ProjectionEvaluatorLinkPose(ob.ProjectionEvaluator):
 class MotionPlanner:
     """A wrapper for OMPL planners."""
 
-    def __init__(self, robot_model: RobotModel, group_name: str, planner=None) -> None:
+    def __init__(self, robot_model: RobotModel, group_name: str) -> None:
         """Initialize the motion planner.
 
         Args:
             robot_model: The robot model.
             group_name: The group to plan for.
-            planner: The planner to use.
         """
         self._robot_model = robot_model
         self._group_name = group_name
         self._space = ob.CompoundStateSpace()
         for idx in robot_model[group_name].joint_indices:
             joint = robot_model.model.joints[int(idx)]
+            joint_name = robot_model.model.names[int(idx)]
             joint_type = joint.shortname()
             if (
                 re.match(PINOCCHIO_REVOLUTE_JOINT, joint_type)
@@ -218,9 +221,9 @@ class MotionPlanner:
                 )  # robot.model.upperPositionLimit[joint.idx_q + 1])
                 if robot_model.motion_model.get(joint_name) == "dubins":
                     space = ob.DubinsStateSpace(
-                        1.0,
-                        True,  # If this is false, it's struggling to find a solution
-                    )  # Turning radius, isSymmetric
+                        1.0,  # Turning radius
+                        isSymmetric=True,  # If this is false, it's struggling to find a solution
+                    )
                     space.setBounds(bounds)
                     self._space.addSubspace(space, 1.0)
                 elif robot_model.motion_model.get(joint_name) == "reeds_shepp":
@@ -249,9 +252,6 @@ class MotionPlanner:
 
         self._setup = og.SimpleSetup(self._space)
 
-        if planner is not None:
-            self._setup.setPlanner(self._get_planner(planner))
-
     def _get_planner(self, planner):
         try:
             return eval(  # noqa: S307
@@ -271,7 +271,6 @@ class MotionPlanner:
         joint_positions = robot_state[self._group_name]
         for space_idx, space in enumerate(self._space.getSubspaces()):
             # TODO: No need to have this, we can get the space dimension from state
-            joint_name = self._robot_model[self._group_name].joints[space_idx]
             joint_index = self._robot_model[self._group_name].joint_indices[space_idx]
             size = joint_nq(self._robot_model.model.joints[int(joint_index)])
             match space.getType():
@@ -361,6 +360,7 @@ class MotionPlanner:
         start_state: RobotState,
         group_goal_qpos: np.ndarray | list[float],
         timeout: float = 1.0,
+        planner: str | None = None,
     ) -> list[RobotState] | None:
         """Plan a trajectory from start to goal.
 
@@ -368,6 +368,7 @@ class MotionPlanner:
             start_state: The start robot state.
             group_goal_qpos: The goal joint positions.
             timeout: Timeout for planner
+            planner: The planner to use.
 
         Returns:
             The trajectory as a list of joint positions or None if no solution was found.
@@ -393,6 +394,10 @@ class MotionPlanner:
             self.as_ompl_state(start_state),
             self.as_ompl_state(goal_state),
         )
+
+        if planner is not None:
+            self._setup.setPlanner(self._get_planner(planner))
+
         solve_result = self._setup.solve(timeout)
         if not solve_result:
             LOGGER.info("Did not find solution!")
