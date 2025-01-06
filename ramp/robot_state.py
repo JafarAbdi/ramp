@@ -306,7 +306,7 @@ class RobotState:
                 ),
             )
 
-    def compute_distances(self):
+    def compute_distances(self) -> list[pinocchio.DistanceResult]:
         data = self.robot_model.model.createData()
         collision_data = self.robot_model.collision_model.createData()
         pinocchio.updateGeometryPlacements(
@@ -318,7 +318,7 @@ class RobotState:
         )
         indices = []
         object_id = self.robot_model.collision_model.getGeometryId(
-            "mobile_base_0",
+            "hand_0",
         )  # Need a better way to get the object id
         for geometry_object in self.geometry_objects.values():
             indices.append(
@@ -329,15 +329,16 @@ class RobotState:
                     ),
                 ),
             )
-        distances = []
+        results = []
         for index in indices:
-            result: pinocchio.DistanceResult = pinocchio.computeDistance(
-                self.robot_model.collision_model,
-                collision_data,
-                index,
+            results.append(
+                pinocchio.computeDistance(
+                    self.robot_model.collision_model,
+                    collision_data,
+                    index,
+                ),
             )
-            distances.append(result.min_distance)
-        return distances
+        return results
 
     def check_collision(self, *, verbose=False):
         """Check if the robot is in collision with the given joint positions.
