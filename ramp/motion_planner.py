@@ -102,7 +102,9 @@ def from_ompl_state(space: ob.CompoundStateSpace, state: ob.State) -> list[float
             case ob.STATE_SPACE_SO3:
                 joint_positions.extend([substate.x, substate.y, substate.z, substate.w])
             case (
-                ob.STATE_SPACE_SE2 | ob.STATE_SPACE_DUBINS | ob.STATE_SPACE_REEDS_SHEPP
+                ob.STATE_SPACE_SE2
+                | ob.STATE_SPACE_DUBINS
+                | ob.STATE_SPACE_REEDS_SHEPP
             ):
                 joint_positions.extend(
                     [substate.getX(), substate.getY(), substate.getYaw()],
@@ -129,18 +131,31 @@ def from_ompl_state(space: ob.CompoundStateSpace, state: ob.State) -> list[float
 
 
 class PathClearanceObjective(ob.StateCostIntegralObjective):
+    """Path clearance objective."""
+
     def __init__(
         self,
         si: ob.SpaceInformation,
         robot_state: RobotState,
         group_name: str,
     ) -> None:
-        super(PathClearanceObjective, self).__init__(si, False)
+        """Initialize the path clearance objective.
+
+        Args:
+            si: The space information.
+            robot_state: The reference robot state.
+            group_name: The group name.
+        """
+        super(PathClearanceObjective, self).__init__(  # noqa: UP008
+            si,
+            enableMotionCostInterpolation=False,
+        )
         self.si_ = si
         self.robot_state = robot_state.clone()
         self._group_name = group_name
 
-    def stateCost(self, s):
+    def stateCost(self, s):  # noqa: N802
+        """Compute the cost of a state."""
         self.robot_state[self._group_name] = from_ompl_state(
             self.si_.getStateSpace(),
             s,
@@ -150,11 +165,12 @@ class PathClearanceObjective(ob.StateCostIntegralObjective):
             / (
                 np.sum(
                     self.robot_state.compute_distances(
-                        "mobile_base_0", "sphere_0x0x0"
-                    )  # TODO: Make it as a lot
+                        "mobile_base_0",
+                        "sphere_0x0x0",
+                    ),  # TODO: Make it as a lot
                 )
                 + 0.1
-            )
+            ),
         )
 
 

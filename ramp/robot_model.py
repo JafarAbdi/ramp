@@ -205,8 +205,11 @@ def make_groups(model: pinocchio.Model, configs: dict) -> dict[str, GroupModel]:
             "named_states",
             {},
         ).items():
-            assert len(state_config) == len(
-                actuated_joint_position_indices,
+            assert (
+                len(state_config)
+                == len(
+                    actuated_joint_position_indices,
+                )
             ), f"Named state '{state_name}' has {len(state_config)} joint positions, expected {len(actuated_joint_position_indices)} for {joints}"
             named_states[state_name] = np.asarray(state_config)
         groups[group_name] = GroupModel(

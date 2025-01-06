@@ -1,3 +1,5 @@
+"""Hardware interface for reading and writing robot state."""
+
 from abc import ABC, abstractmethod
 
 import mujoco
@@ -11,32 +13,54 @@ from ramp.robot_state import RobotState
 
 
 class HardwareInterface(ABC):
+    """Abstract class for hardware interface."""
+
     def __init__(self, robot_model: RobotModel):
+        """Initialize hardware interface."""
         self.robot_model = robot_model
 
     @abstractmethod
     def read(self) -> RobotState:
-        pass
+        """Read robot state."""
 
     @abstractmethod
     def write(self, joint_names: list[str], ctrl: np.ndarray):
-        pass
+        """Write control commands to robot."""
 
 
 class MockHardwareInterface(HardwareInterface):
+    """Mock hardware interface for testing."""
+
     def __init__(self, robot_model: RobotModel, initial_robot_state: RobotState):
+        """Initialize mock hardware interface.
+
+        Args:
+            robot_model: Robot model.
+            initial_robot_state: Initial robot state.
+        """
         super().__init__(robot_model)
         self._robot_state = initial_robot_state.clone()
 
     def read(self) -> RobotState:
+        """Read robot state."""
         return self._robot_state.clone()
 
     def write(self, joint_names: list[str], ctrl: np.ndarray):
-        raise NotImplementedError("Mock hardware interface does not support writing.")
+        """Write control commands to robot."""
+        msg = "Mock hardware interface does not support writing."
+        raise NotImplementedError(msg)
 
 
 class MuJoCoHardwareInterface(HardwareInterface):
-    def __init__(self, robot_model: RobotModel, keyframe: str = None):
+    """MuJoCo hardware interface."""
+
+    def __init__(self, robot_model: RobotModel, keyframe: str | None = None):
+        """Initialize MuJoCo hardware interface.
+
+        Args:
+            robot_model: Robot model.
+            keyframe: Keyframe for the mujoco simulation.
+        """
         super().__init__(robot_model)
         # Current assumption: The model file is in the same directory as the scene file
         # ROBOT.xml -> Used for pinocchio since it doesn't support builtin textures
@@ -154,6 +178,7 @@ class MuJoCoHardwareInterface(HardwareInterface):
         }
 
     def read(self) -> RobotState:
+        """Read robot state."""
         qpos = np.asarray(self._mj_interface.qpos())
         # > qvel = self._mj_interface.qvel()
         # > qvel=self.from_mj_joint_positions(qvel),
@@ -163,6 +188,7 @@ class MuJoCoHardwareInterface(HardwareInterface):
         )
 
     def write(self, joint_names: list[str], ctrl: np.ndarray):
+        """Write control commands to robot."""
         self._mj_interface.ctrl(
             self.as_mj_ctrl(
                 joint_names,
