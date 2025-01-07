@@ -24,7 +24,6 @@ jobs:
       - uses: prefix-dev/setup-pixi@v0.8.1
         with:
           cache: true
-          frozen: true
           environments: lint
       - run: pixi run lint --color=always --show-diff-on-failure
   pytest:
@@ -40,7 +39,6 @@ jobs:
         with:
           cache: true
           cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
-          frozen: true
       - run: pixi run --environment test install-mujoco
       - run: pixi run test
       - run: pixi run -e test test-coverage --color=yes
