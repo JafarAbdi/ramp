@@ -133,7 +133,7 @@ def test_ik(robot_name):
     )
     target_joint_positions = ik_solver.solve(
         [0.2, 0.2, 0.2, 1.0, 0.0, 0.0, 0.0],
-        robot_state.actuated_qpos,
+        robot_state.actuated_qpos(),
     )
     assert target_joint_positions is not None
 
@@ -149,7 +149,7 @@ def test_ik(robot_name):
     )
     target_joint_positions = ik_solver.solve(
         [2.0, 2.0, 2.0, 1.0, 0.0, 0.0, 0.0],
-        robot_state.actuated_qpos,
+        robot_state.actuated_qpos(),
     )
     assert target_joint_positions is None
 

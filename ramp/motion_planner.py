@@ -312,7 +312,7 @@ class MotionPlanner:
         state = ob.CompoundState(self._space)
         internal_state = state()
         i = 0
-        joint_positions = robot_state[self._group_name]
+        joint_positions = robot_state.group_qpos(self._group_name)
         for space_idx, space in enumerate(self._space.getSubspaces()):
             # TODO: No need to have this, we can get the space dimension from state
             joint_index = self._robot_model[self._group_name].joint_indices[space_idx]
@@ -366,9 +366,12 @@ class MotionPlanner:
         """Set the state validity checker."""
 
         def is_ompl_state_valid(reference_robot_state, state):
-            reference_robot_state[self._group_name] = from_ompl_state(
-                self._space,
-                state,
+            reference_robot_state.set_group_qpos(
+                self._group_name,
+                from_ompl_state(
+                    self._space,
+                    state,
+                ),
             )
             return self.is_state_valid(reference_robot_state)
 
@@ -383,9 +386,12 @@ class MotionPlanner:
         if self._robot_model[self._group_name].tcp_link_name is not None:
 
             def pose_fn(reference_robot_state, state):
-                reference_robot_state[self._group_name] = from_ompl_state(
-                    self._space,
-                    state,
+                reference_robot_state.set_group_qpos(
+                    self._group_name,
+                    from_ompl_state(
+                        self._space,
+                        state,
+                    ),
                 )
                 return reference_robot_state.get_frame_pose(
                     self._robot_model[self._group_name].tcp_link_name,
@@ -421,7 +427,7 @@ class MotionPlanner:
             self._robot_model[self._group_name].joint_position_indices,
         )
         goal_state = start_state.clone()
-        goal_state[self._group_name] = group_goal_qpos
+        goal_state.set_group_qpos(self._group_name, group_goal_qpos)
         self._setup.clear()
         self._setup_state_validity_checker(start_state)
         self._setup_projection_evaluator(start_state)
@@ -489,9 +495,12 @@ class MotionPlanner:
         solution = []
         reference_robot_state = start_state.clone()
         for state in simplified_path.getStates():
-            reference_robot_state[self._group_name] = from_ompl_state(
-                self._space,
-                state,
+            reference_robot_state.set_group_qpos(
+                self._group_name,
+                from_ompl_state(
+                    self._space,
+                    state,
+                ),
             )
             solution.append(reference_robot_state.clone())
         LOGGER.info(f"Found solution with {len(solution)} waypoints")
@@ -544,7 +553,7 @@ class MotionPlanner:
             )
         trajectory = totg.Trajectory(
             totg.Path(
-                [waypoint[self._group_name] for waypoint in waypoints],
+                [waypoint.group_qpos(self._group_name) for waypoint in waypoints],
                 max_deviation,
             ),
             self._robot_model.velocity_limits,
@@ -557,7 +566,7 @@ class MotionPlanner:
         parameterized_trajectory = []
         for t in np.append(np.arange(0.0, duration, resample_dt), duration):
             rs = waypoints[0].clone()
-            rs[self._group_name] = trajectory.getPosition(t)
+            rs.set_group_qpos(self._group_name, trajectory.getPosition(t))
             # TODO: Need a utility function for this
             rs.qvel[self._robot_model[self._group_name].joint_velocity_indices] = (
                 trajectory.getVelocity(t)
