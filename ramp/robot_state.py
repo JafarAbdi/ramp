@@ -15,6 +15,7 @@ from ramp.constants import (
 )
 from ramp.pinocchio_utils import (
     as_pinocchio_pose,
+    joint_indices,
 )
 from ramp.robot_model import (
     RobotModel,
