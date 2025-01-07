@@ -133,12 +133,12 @@ class MuJoCoHardwareInterface(HardwareInterface):
                 actuated_joint_indices,
             )
 
-            zenoh.init_log_from_env_or("error")
-            self._mj_interface = MuJoCoInterface()
-            self._mj_interface.reset(
-                model_filename=self.model_filename,
-                keyframe=keyframe,
-            )
+        zenoh.init_log_from_env_or("error")
+        self._mj_interface = MuJoCoInterface()
+        self._mj_interface.reset(
+            model_filename=self.model_filename,
+            keyframe=keyframe,
+        )
 
     def from_mj_joint_positions(self, q) -> np.ndarray:
         """Convert mujoco joint positions to joint positions."""
