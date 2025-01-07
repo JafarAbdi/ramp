@@ -160,6 +160,20 @@ class RobotModel:
             ],
         )
 
+    def body_geometries(self, name: str):
+        """Get the body geometries for a link.
+
+        Args:
+            name: The link name
+
+        Returns:
+            The body geometries
+        """
+        return filter(
+            lambda geometry: geometry.parentFrame == self.model.getBodyId(name),
+            self.collision_model.geometryObjects,
+        )
+
 
 def make_groups(model: pinocchio.Model, configs: dict) -> dict[str, GroupModel]:
     """Make groups from the model and the config.
