@@ -59,7 +59,6 @@ mj_interface.add_decorative_geometry(
 
 planner = MotionPlanner(robot_model, group_name)
 for _ in range(100):
-    # input("Press enter to plan a new path..")
     goal_state.randomize()
     if path := planner.plan(
         mj_interface.read(),
