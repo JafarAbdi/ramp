@@ -61,6 +61,12 @@ To change the logging verbosity for trac-ik solver
 SPDLOG_LEVEL=debug pixi run python XXX
 ```
 
+### Attach models example
+
+```bash
+pixi run python ./examples/attach_models_demo.py ./external/mujoco_menagerie/unitree_a1/a1.xml ./external/mujoco_menagerie/trs_so_arm100/so_arm100.xml Base
+```
+
 ## Acknowledgements
 
 - Some aspects of the Pinocchio library usage were adapted from [pyroboplan](https://github.com/sea-bass/pyroboplan).

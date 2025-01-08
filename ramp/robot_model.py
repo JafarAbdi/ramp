@@ -14,6 +14,7 @@ import toml
 from pinocchio import casadi as cpin
 from rich import pretty
 
+from ramp.constants import PINOCCHIO_FREEFLYER_JOINT
 from ramp.exceptions import (
     MissingAccelerationLimitError,
     MissingBaseLinkError,
@@ -271,7 +272,11 @@ def load_robot_model(
             )
             joint_names = []
             for joint in model.names:
-                if joint == "universe":
+                if (
+                    joint == "universe"
+                    or model.joints[model.getJointId(joint)].shortname()
+                    == PINOCCHIO_FREEFLYER_JOINT
+                ):
                     continue
                 joint_names.append(joint)
             configs = {

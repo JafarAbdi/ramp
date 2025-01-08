@@ -1,0 +1,23 @@
+<?xml version="1.0"?>
+<mujoco model="simple_acrobot">
+  <worldbody>
+    <body name="upper_link" pos="0 0 2.5">
+      <joint axis="0 1 0" pos="0 0 0.75" name="shoulder" type="hinge"/>
+      <geom name="upper_link" rgba="0.5 0 0 1" size="0.05 0.75" type="cylinder"/>
+      <!-- I1, I2 = 1/12 * m1 * l1**2, 1/12 * m2 * l2**2  # moments of inertia for uniform rods -->
+      <!-- 0.047 0.047 0.001 -->
+      <inertial mass="1" pos="0 0 0" diaginertia="0.1 0.1 0.01"/>
+      <body name="lower_link" pos="0 0 -1.5">
+        <joint axis="0 1 0" name="elbow" pos="0 0 0.75" type="hinge"/>
+        <inertial mass="1" pos="0 0 0" diaginertia="0.1 0.1 0.01"/>
+        <geom name="lower_link" rgba="0 0.5 0 1" size="0.05 0.75" type="cylinder"/>
+      </body>
+    </body>
+  </worldbody>
+  <actuator>
+    <motor name="elbow" joint="elbow"/>
+  </actuator>
+  <keyframe>
+    <key name="upright" qpos="3.14 0" qvel="0 0"/>
+  </keyframe>
+</mujoco>

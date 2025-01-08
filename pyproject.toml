@@ -17,6 +17,15 @@ dependencies = [
   "urdf-parser-py",
   "xacrodoc==0.4.1",
   "meshcat-shapes>=0.3.0,<0.4",
+  # mujoco_interface dependencies
+  "mujoco",
+  "eclipse-zenoh>=1.0.2,<2",
+  "transforms3d>=0.4.2,<0.5",
+  "loop-rate-limiters",
+  "rich",
+  "numpy",
+  "scipy",
+
 ]
 
 [project.urls]
@@ -192,7 +201,6 @@ ompl = { url = "https://github.com/ompl/ompl/releases/download/prerelease/ompl-1
 
 [tool.pixi.pypi-dependencies]
 ramp = { path = ".", editable = true }
-mujoco_simulator_py = { path = "external/mujoco_simulator/mujoco_simulator_py", editable = true }
 
 [tool.pixi.tasks]
 meshcat = "meshcat-server --open"

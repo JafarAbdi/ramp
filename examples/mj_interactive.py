@@ -8,7 +8,7 @@ from rich.logging import RichHandler
 
 from ramp import load_robot_model, setup_logging
 from ramp.ik_solver import IKSolver
-from ramp.hardware_interface import MuJoCoHardwareInterface
+from ramp.mujoco_interface import MuJoCoHardwareInterface
 from ramp.robot_model import create_geometry_object
 import pinocchio
 import hppfcl

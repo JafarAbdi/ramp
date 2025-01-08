@@ -6,10 +6,9 @@ import time
 
 from rich.logging import RichHandler
 
-# from mujoco_simulator_py.mujoco_interface import MuJoCoInterface
 from ramp import load_robot_model, setup_logging
 from ramp.ik_solver import IKSolver
-from ramp.hardware_interface import MuJoCoHardwareInterface
+from ramp.mujoco_interface import MuJoCoHardwareInterface
 
 setup_logging()
 LOGGER = logging.getLogger(__name__)
