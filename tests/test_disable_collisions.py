@@ -25,8 +25,6 @@ def test_disable_collisions():
     robot_model = load_robot_model(
         FILE_PATH
         / ".."
-        / "external"
-        / "mujoco_simulator"
         / "mujoco_simulator_py"
         / "examples"
         / "acrobot.xml"

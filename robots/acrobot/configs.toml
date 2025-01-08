@@ -1,6 +1,6 @@
 [robot]
 base_link = "universe"
-description = "../../external/mujoco_simulator/mujoco_simulator_py/examples/acrobot.xml"
+description = "../../mujoco_simulator_py/examples/acrobot.xml"
 disable_collisions = "acrobot.srdf.xacro"
 
 [group.arm]

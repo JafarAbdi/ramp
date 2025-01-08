@@ -1,0 +1,36 @@
+<?xml version="1.0"?>
+<mujoco model="simple_acrobot">
+  <option integrator="RK4"/>
+  <visual>
+    <map force="0.1" zfar="30"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global offwidth="2560" offheight="1440" elevation="-20" azimuth="120"/>
+  </visual>
+  <asset>
+    <texture name="grid" type="2d" builtin="checker" rgb1=".1 .2 .3" rgb2=".2 .3 .4" width="300" height="300"/>
+    <material name="grid" texture="grid" texrepeat="8 8" reflectance=".2"/>
+  </asset>
+  <worldbody>
+    <light diffuse=".5 .5 .5" dir="0 -.15 -1" directional="true" pos="0 0 3"/>
+    <camera name="closeup" pos="4.5 6 8" xyaxes="-0.804 0.594 -0.000 -0.288 -0.389 0.875"/>
+    <geom size="10.0 10.0 .01" type="plane" material="grid"/>
+    <body name="upper_link" pos="0 0 2.5">
+      <joint axis="0 1 0" pos="0 0 0.75" name="shoulder" type="hinge"/>
+      <geom name="upper_link" rgba="0.5 0 0 1" size="0.05 0.75" type="cylinder"/>
+      <!-- I1, I2 = 1/12 * m1 * l1**2, 1/12 * m2 * l2**2  # moments of inertia for uniform rods -->
+      <!-- 0.047 0.047 0.001 -->
+      <inertial mass="1" pos="0 0 0" diaginertia="0.1 0.1 0.01"/>
+      <body name="lower_link" pos="0 0 -1.5">
+        <joint axis="0 1 0" name="elbow" pos="0 0 0.75" type="hinge"/>
+        <inertial mass="1" pos="0 0 0" diaginertia="0.1 0.1 0.01"/>
+        <geom name="lower_link" rgba="0 0.5 0 1" size="0.05 0.75" type="cylinder"/>
+      </body>
+    </body>
+  </worldbody>
+  <actuator>
+    <motor name="elbow" joint="elbow"/>
+  </actuator>
+  <keyframe>
+    <key name="upright" qpos="3.14 0" qvel="0 0"/>
+  </keyframe>
+</mujoco>
