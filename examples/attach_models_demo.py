@@ -18,7 +18,7 @@ def main():
     robot_model = load_robot_model(pathlib.Path(sys.argv[1]))
     mujoco_interface = MuJoCoHardwareInterface(robot_model)
     mujoco_interface.reset()
-    nr = 10
+    nr = 5
 
     xv, yv = np.meshgrid(np.linspace(-2.5, 2.5, nr), np.linspace(-2.5, 2.5, nr))
     for i in range(nr):
@@ -31,17 +31,6 @@ def main():
                 ([xv[i, j], yv[i, j], 0.0], [0.0, 0.0, 0.0, 1.0]),
                 f"{i}x{j}/",
             )
-    # for i, pos in enumerate(
-    #     [[-0.5, 0.5, 0.0], [0.5, 0.5, 0.0], [0.5, -0.5, 0.0], [-0.5, -0.5, 0.0]],
-    # ):
-    #     input("Press Enter...")
-    #     mujoco_interface.attach_model(
-    #         sys.argv[2],
-    #         "world",
-    #         sys.argv[3],
-    #         (pos, [0.0, 0.0, 0.0, 1.0]),
-    #         f"{i}/",
-    #     )
 
 
 if __name__ == "__main__":
