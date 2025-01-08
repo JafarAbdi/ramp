@@ -1,8 +1,9 @@
+import pathlib
+
 import numpy as np
 import scipy
 import zenoh
 from loop_rate_limiters import RateLimiter
-import pathlib
 
 from mujoco_simulator_py.mujoco_interface import MuJoCoInterface
 

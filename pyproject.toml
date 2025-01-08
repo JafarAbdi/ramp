@@ -149,7 +149,12 @@ ignore = ["E501"]
 # INP001: implicit-namespace-package
 # PLR2004: magic-value-comparison
 extend-ignore = ["G004", "INP001", "PLR2004", "S101", "PLR0915"]
-exclude = ["examples/*.py", "tests/*.py"]
+exclude = [
+  "examples/*.py",
+  "tests/*.py",
+  "mujoco_simulator_py/examples/*.py",
+  "mujoco_simulator_py/tests/*.py",
+]
 
 [tool.ruff]
 target-version = "py310"

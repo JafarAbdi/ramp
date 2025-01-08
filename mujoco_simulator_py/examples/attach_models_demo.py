@@ -1,7 +1,7 @@
-import sys
-import zenoh
-from loop_rate_limiters import RateLimiter
 import pathlib
+import sys
+
+import zenoh
 
 from mujoco_simulator_py.mujoco_interface import MuJoCoInterface
 
@@ -19,7 +19,7 @@ def main():
         keyframe="home",
     )
     for i, pos in enumerate(
-        [[-0.5, 0.5, 0.0], [0.5, 0.5, 0.0], [0.5, -0.5, 0.0], [-0.5, -0.5, 0.0]]
+        [[-0.5, 0.5, 0.0], [0.5, 0.5, 0.0], [0.5, -0.5, 0.0], [-0.5, -0.5, 0.0]],
     ):
         input("Press Enter...")
         mujoco_interface.attach_model(

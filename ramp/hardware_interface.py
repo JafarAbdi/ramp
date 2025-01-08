@@ -5,8 +5,8 @@ from abc import ABC, abstractmethod
 import mujoco
 import numpy as np
 import zenoh
-from mujoco_simulator_py.mujoco_interface import MuJoCoInterface
 
+from mujoco_simulator_py.mujoco_interface import MuJoCoInterface
 from ramp.exceptions import MissingJointError
 from ramp.robot_model import RobotModel
 from ramp.robot_state import RobotState

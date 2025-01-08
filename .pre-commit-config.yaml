@@ -1,10 +1,34 @@
 repos:
   - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v4.4.0
+    rev: v5.0.0
     hooks:
+      - id: check-added-large-files
+      - id: check-ast
+      - id: check-builtin-literals
+      - id: check-byte-order-marker
+      - id: check-case-conflict
+      - id: check-docstring-first
+      - id: check-executables-have-shebangs
+      - id: check-json
+      - id: check-merge-conflict
+      - id: check-symlinks
+      - id: check-toml
+      - id: check-vcs-permalinks
+      - id: check-xml
       - id: check-yaml
-      - id: sort-simple-yaml
+        args: ["--allow-multiple-documents"]
+      - id: debug-statements
+      - id: destroyed-symlinks
+      - id: detect-private-key
       - id: end-of-file-fixer
+      - id: fix-byte-order-marker
+      - id: forbid-new-submodules
+      - id: mixed-line-ending
+      - id: name-tests-test
+      - id: pretty-format-json
+        args: ["--autofix"]
+      - id: requirements-txt-fixer
+      - id: sort-simple-yaml
       - id: trailing-whitespace
   - repo: https://github.com/charliermarsh/ruff-pre-commit
     rev: v0.5.5
@@ -12,6 +36,14 @@ repos:
       - id: ruff
         args: ["--output-format=full", "--fix", "--config", "pyproject.toml"]
       - id: ruff-format
+  - repo: https://github.com/pre-commit/mirrors-prettier
+    rev: "v3.1.0"
+    hooks:
+      - id: prettier
+        additional_dependencies:
+          - "prettier@3.1.0"
+          - "@prettier/plugin-xml@3.3.1"
+        files: \.(xml|xacro|srdf|urdf)$
   - repo: https://github.com/lsst-ts/pre-commit-xmllint
     rev: v1.0.0
     hooks:

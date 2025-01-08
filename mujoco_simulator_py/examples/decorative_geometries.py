@@ -1,9 +1,9 @@
 import math
+import pathlib
 import sys
 import time
+
 import zenoh
-from loop_rate_limiters import RateLimiter
-import pathlib
 
 from mujoco_simulator_py.mujoco_interface import MuJoCoInterface
 
@@ -37,7 +37,10 @@ def main():
     ]
     for object_name, object_type, object_pos, object_size in objects:
         mujoco_interface.add_decorative_geometry(
-            object_name, object_type, object_pos, object_size
+            object_name,
+            object_type,
+            object_pos,
+            object_size,
         )
     time.sleep(2.0)
     for object_name, _, _, _ in objects:
