@@ -5,7 +5,7 @@ import time
 
 import zenoh
 
-from mujoco_simulator_py.mujoco_interface import MuJoCoInterface
+from ramp.mujoco_interface import MuJoCoHardwareInterface
 
 FILE_PATH = pathlib.Path(__file__).parent
 
@@ -16,7 +16,7 @@ def main():
         sys.exit(1)
 
     zenoh.init_log_from_env_or("error")
-    mujoco_interface = MuJoCoInterface()
+    mujoco_interface = MuJoCoHardwareInterface()
     mujoco_interface.reset(
         model_filename=FILE_PATH / sys.argv[1],
         keyframe="home",

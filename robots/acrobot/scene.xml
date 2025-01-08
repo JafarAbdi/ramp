@@ -1,0 +1,18 @@
+<?xml version="1.0"?>
+<mujoco model="simple_acrobot">
+  <include file="acrobot.xml"/>
+  <visual>
+    <map force="0.1" zfar="30"/>
+    <rgba haze="0.15 0.25 0.35 1"/>
+    <global offwidth="2560" offheight="1440" elevation="-20" azimuth="120"/>
+  </visual>
+  <asset>
+    <texture name="grid" type="2d" builtin="checker" rgb1=".1 .2 .3" rgb2=".2 .3 .4" width="300" height="300"/>
+    <material name="grid" texture="grid" texrepeat="8 8" reflectance=".2"/>
+  </asset>
+  <worldbody>
+    <light diffuse=".5 .5 .5" dir="0 -.15 -1" directional="true" pos="0 0 3"/>
+    <camera name="closeup" pos="4.5 6 8" xyaxes="-0.804 0.594 -0.000 -0.288 -0.389 0.875"/>
+    <geom size="10.0 10.0 .01" type="plane" material="grid"/>
+  </worldbody>
+</mujoco>

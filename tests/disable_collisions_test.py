@@ -23,7 +23,7 @@ def test_disable_collisions():
         ]
     )
     robot_model = load_robot_model(
-        FILE_PATH / ".." / "mujoco_simulator_py" / "examples" / "acrobot.xml"
+        FILE_PATH / ".." / "robots" / "acrobot" / "acrobot.xml"
     )
     assert set(adjacent_collisions(robot_model)) == set(
         [("upper_link", "lower_link", DisabledReason.ADJACENT)]

@@ -5,7 +5,8 @@ import scipy
 import zenoh
 from loop_rate_limiters import RateLimiter
 
-from mujoco_simulator_py.mujoco_interface import MuJoCoInterface
+from ramp import load_robot_model
+from ramp.mujoco_interface import MuJoCoHardwareInterface
 
 FILE_PATH = pathlib.Path(__file__).parent
 
@@ -36,11 +37,11 @@ class LQR:
 
 def main():
     zenoh.init_log_from_env_or("error")
-    mujoco_interface = MuJoCoInterface()
-    mujoco_interface.reset(
-        model_filename=FILE_PATH / "acrobot.xml",
-        keyframe="upright",
+    robot_model = load_robot_model(
+        FILE_PATH / ".." / "robots" / "acrobot" / "acrobot.xml"
     )
+    mujoco_interface = MuJoCoHardwareInterface(robot_model)
+    mujoco_interface.reset(keyframe="upright")
 
     lqr = LQR()
     rate = RateLimiter(250)
