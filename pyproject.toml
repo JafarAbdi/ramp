@@ -19,7 +19,7 @@ dependencies = [
   "meshcat-shapes>=0.3.0,<0.4",
   # mujoco_interface dependencies
   "mujoco",
-  "eclipse-zenoh>=1.0.2,<2",
+  "eclipse-zenoh>=1.1.0,<2",
   "transforms3d>=0.4.2,<0.5",
   "loop-rate-limiters",
   "rich",

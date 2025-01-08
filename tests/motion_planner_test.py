@@ -8,6 +8,7 @@ import hppfcl
 from ramp import load_robot_model, RobotState, MotionPlanner, setup_logging
 from ramp.robot_model import create_geometry_object
 from ramp.ik_solver import IKSolver
+from ramp.trajectory_smoothing import generate_time_optimal_trajectory
 from ramp.exceptions import (
     MissingBaseLinkError,
     MissingAccelerationLimitError,
@@ -28,7 +29,7 @@ def test_motion_planning():
     start_state = RobotState.from_named_state(robot_model, GROUP_NAME, "home")
     plan = planner.plan(start_state, [0.0, 1.0, 1.0])
     assert plan is not None, "Expected a plan to be found"
-    trajectory = planner.parameterize(plan)
+    trajectory = generate_time_optimal_trajectory(robot_model, GROUP_NAME, plan)
     assert trajectory is not None, "Expected a trajectory to be found"
 
     # RRR with planar base

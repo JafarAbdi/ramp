@@ -1,5 +1,7 @@
 """This module contains the constants used in the package."""
 
+import numpy as np
+
 # Loading from robot_descriptions
 ROBOT_DESCRIPTION_PREFIX = "robot-descriptions::"
 MUJOCO_DESCRIPTION_VARIANT = "_mj_"
@@ -19,3 +21,5 @@ PINOCCHIO_FREEFLYER_JOINT = "JointModelFreeFlyer"
 PINOCCHIO_REVOLUTE_UNALIGNED_JOINT = "JointModelRevoluteUnaligned"
 # JointModelRevoluteUnboundedUnaligned
 # JointModelPrismaticUnaligned
+
+SIZE_T_MAX = np.iinfo(np.uintp).max

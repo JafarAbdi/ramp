@@ -1,6 +1,7 @@
 """Compute the disable collisions for a given model."""
 
 import enum
+import itertools
 import logging
 import pathlib
 import sys
@@ -8,6 +9,7 @@ import sys
 import pinocchio
 from rich.logging import RichHandler
 
+from ramp.constants import SIZE_T_MAX
 from ramp.robot_model import RobotModel, load_robot_model
 
 
@@ -38,13 +40,53 @@ def get_collision_pair_names(
     pair: pinocchio.CollisionPair,
 ) -> tuple[str, str]:
     """Get the collision pair names."""
-    frame_name1 = model.frames[
-        collision_model.geometryObjects[pair.first].parentFrame
-    ].name
-    frame_name2 = model.frames[
-        collision_model.geometryObjects[pair.second].parentFrame
-    ].name
+    frame_name1 = collision_model.geometryObjects[pair.first].name
+    if collision_model.geometryObjects[pair.first].parentFrame != SIZE_T_MAX:
+        frame_name1 = model.frames[
+            collision_model.geometryObjects[pair.first].parentFrame
+        ].name
+    frame_name2 = collision_model.geometryObjects[pair.second].name
+    if collision_model.geometryObjects[pair.second].parentFrame != SIZE_T_MAX:
+        frame_name2 = model.frames[
+            collision_model.geometryObjects[pair.second].parentFrame
+        ].name
     return (frame_name1, frame_name2)
+
+
+def disable_collision_pair(
+    robot_model: RobotModel,
+    link1: str,
+    link2: str,
+):
+    """Disable the collision between two links.
+
+    Args:
+        robot_model: The robot model.
+        link1: The first link.
+        link2: The second link.
+
+    Returns:
+        The collision pair.
+    """
+    LOGGER.info(
+        f"Number of collision pairs before removal: {len(robot_model.collision_model.collisionPairs)}",
+    )
+    link1_geometries = [
+        geometry.name for geometry in robot_model.body_geometries(link1)
+    ] or [link1]
+    link2_geometries = [
+        geometry.name for geometry in robot_model.body_geometries(link2)
+    ] or [link2]
+    for geometry1, geometry2 in itertools.product(link1_geometries, link2_geometries):
+        robot_model.collision_model.removeCollisionPair(
+            pinocchio.CollisionPair(
+                robot_model.collision_model.getGeometryId(geometry1),
+                robot_model.collision_model.getGeometryId(geometry2),
+            ),
+        )
+    LOGGER.info(
+        f"Number of collision pairs after removal: {len(robot_model.collision_model.collisionPairs)}",
+    )
 
 
 def disable_collision(
@@ -83,7 +125,7 @@ def disable_collision(
         verbose=True,
     )
 
-    # TODO: Why this is not working???
+    # TODO: Why this is not working??? Body name != geometry name
     # > for pair in default_pairs.values():
     # >   compute_disable_collisions.collision_model.removeCollisionPair(pair)
     LOGGER.info(
@@ -169,6 +211,8 @@ def adjacent_collisions(
 
     adjacent_pairs = set()
     for geometry_object in robot_model.collision_model.geometryObjects:
+        if geometry_object.parentFrame == SIZE_T_MAX:
+            continue
         current_frame = robot_model.model.frames[geometry_object.parentFrame]
         parent_frame = get_body_parent(current_frame)
         if parent_frame.name == "universe" or current_frame.name == "universe":
