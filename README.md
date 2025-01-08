@@ -64,7 +64,7 @@ SPDLOG_LEVEL=debug pixi run python XXX
 ### Attach models example
 
 ```bash
-pixi run python examples/attach_models_demo.py mujoco_menagerie/franka_fr3/scene.xml  mujoco_menagerie/kinova_gen3/gen3.xml base_link
+pixi run python ./examples/attach_models_demo.py ./external/mujoco_menagerie/unitree_a1/a1.xml ./external/mujoco_menagerie/trs_so_arm100/so_arm100.xml Base
 ```
 
 ## Acknowledgements
