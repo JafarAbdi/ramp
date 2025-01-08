@@ -161,7 +161,7 @@ class RobotModel:
             ],
         )
 
-    def body_geometries(self, name: str):
+    def body_geometries(self, name: str) -> list[pinocchio.GeometryObject]:
         """Get the body geometries for a link.
 
         Args:
@@ -241,6 +241,7 @@ def make_groups(model: pinocchio.Model, configs: dict) -> dict[str, GroupModel]:
 def load_robot_model(
     config_path: Path,
     motion_models: dict | None = None,
+    acceleration_limits: dict | None = None,
 ) -> RobotModel:
     """Load the robot model from a config file, URDF, XACRO, or MJCF's XML file.
 
@@ -289,6 +290,7 @@ def load_robot_model(
                         "joints": joint_names,
                     },
                 },
+                "acceleration_limits": acceleration_limits or {},
                 "motion_model": motion_models or {},
             }
     return load_robot_model_from_configs(configs)

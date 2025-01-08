@@ -153,7 +153,7 @@ class MuJoCoHardwareInterface(HardwareInterface):
     def as_mj_ctrl(self, joint_names, joint_positions):
         """Convert joint positions to mujoco ctrl."""
         return {
-            self.actuator_names[joint_name]: joint_position
+            self.actuator_names[joint_name]: float(joint_position)
             for joint_name, joint_position in zip(
                 joint_names,
                 joint_positions,
@@ -171,12 +171,12 @@ class MuJoCoHardwareInterface(HardwareInterface):
             self.from_mj_joint_positions(qpos),
         )
 
-    def write(self, joint_names: list[str], ctrl: np.ndarray):
+    def write(self, robot_state: RobotState):
         """Write control commands to robot."""
         self.ctrl(
             self.as_mj_ctrl(
-                joint_names,
-                ctrl,
+                robot_state.robot_model.joint_names,
+                robot_state.actuated_qpos(),
             ),
         )
 

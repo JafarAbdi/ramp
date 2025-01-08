@@ -9,7 +9,6 @@ from collections.abc import Callable
 
 import numpy as np
 import ompl
-import time_optimal_trajectory_generation_py as totg
 from ompl import base as ob
 from ompl import geometric as og
 
@@ -520,56 +519,3 @@ class MotionPlanner:
         return self._setup.getSpaceInformation().satisfiesBounds(
             ompl_state(),
         ) and not robot_state.check_collision(verbose=verbose)
-
-    def parameterize(
-        self,
-        waypoints: list[RobotState],
-        resample_dt=0.1,
-    ) -> list[tuple[RobotState, float]] | None:
-        """Parameterize the trajectory using Time Optimal Trajectory Generation http://www.golems.org/node/1570.
-
-        Args:
-            waypoints: The waypoints to parameterize.
-            resample_dt: The resampling time step.
-
-        Returns:
-            The parameterized trajectory as a list of (joint positions, joint velocities, time).
-        """
-        # The intermediate waypoints of the input path need to be blended so that the entire path is differentiable.
-        # This constant defines the maximum deviation allowed at those intermediate waypoints, in radians for revolute joints,
-        # or meters for prismatic joints.
-        max_deviation = 0.1
-        if self._robot_model.acceleration_limits.size == 0:
-            raise ValueError(
-                "Acceleration limits are required for trajectory parameterization"
-                "Make sure to specify acceleration limits in the robot model"
-                "\n[acceleration_limits]\n"
-                + "\n".join(
-                    [
-                        f"{joint_name} = X"
-                        for joint_name in self._robot_model.joint_names
-                    ],
-                ),
-            )
-        trajectory = totg.Trajectory(
-            totg.Path(
-                [waypoint.group_qpos(self._group_name) for waypoint in waypoints],
-                max_deviation,
-            ),
-            self._robot_model.velocity_limits,
-            self._robot_model.acceleration_limits,
-        )
-        if not trajectory.isValid():
-            LOGGER.error("Failed to parameterize trajectory")
-            return None
-        duration = trajectory.getDuration()
-        parameterized_trajectory = []
-        for t in np.append(np.arange(0.0, duration, resample_dt), duration):
-            rs = waypoints[0].clone()
-            rs.set_group_qpos(self._group_name, trajectory.getPosition(t))
-            # TODO: Need a utility function for this
-            rs.qvel[self._robot_model[self._group_name].joint_velocity_indices] = (
-                trajectory.getVelocity(t)
-            )
-            parameterized_trajectory.append((rs, t))
-        return parameterized_trajectory

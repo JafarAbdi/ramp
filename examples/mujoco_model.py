@@ -7,6 +7,7 @@ import pathlib
 from rich.logging import RichHandler
 
 from ramp import load_robot_model, RobotState, MotionPlanner, Visualizer
+from ramp.trajectory_smoothing import generate_time_optimal_trajectory
 
 LOGGER = logging.getLogger(__name__)
 
@@ -28,6 +29,6 @@ if visualize:
 planner = MotionPlanner(robot_model, group_name)
 if path := planner.plan(start_state, goal_state):
     # For visualizing the path parameterization - visualizer.robot_trajectory(path)
-    trajectory = planner.parameterize(path)
+    trajectory = generate_time_optimal_trajectory(robot_model, group_name, path)
     if visualize:
         visualizer.robot_trajectory([t for t, _ in trajectory])
