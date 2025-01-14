@@ -79,7 +79,7 @@ class IKDemo:
             self.robot_model[GROUP_NAME].tcp_link_name,
         )
         target_joint_positions = ik_solver.solve(
-            target_pose, self.initial_state.actuated_qpos
+            target_pose, self.initial_state.actuated_qpos()
         )
         if target_joint_positions is None:
             LOGGER.info("IK failed")
