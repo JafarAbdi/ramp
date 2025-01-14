@@ -1,3 +1,5 @@
+"""A wrapper around time_optimal_trajectory_generation."""
+
 import logging
 
 import numpy as np
