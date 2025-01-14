@@ -154,24 +154,11 @@ class RobotState:
             self.set_group_qpos(name, qpos[group.joint_position_indices])
 
     @classmethod
-    def from_random(cls, robot_model: RobotModel):
-        """Create a robot state from random joint positions."""
-        rs = cls(robot_model)
-        rs.randomize()
-        return rs
-
-    @classmethod
     def from_actuated_qpos(cls, robot_model: RobotModel, joint_positions: np.ndarray):
         """Create a robot state from actuated joint positions."""
         rs = cls(robot_model)
         rs.set_actuated_qpos(joint_positions)
         return rs
-
-    @classmethod
-    def from_pinocchio_qpos(cls, robot_model: RobotModel, q: np.ndarray):
-        """Convert pinocchio joint positions to joint positions."""
-        assert len(q) == robot_model.model.nq
-        return cls(robot_model, q)
 
     @classmethod
     def from_named_state(
