@@ -62,7 +62,11 @@ def ik(config_name: str, visualize: bool):
 
     opti = casadi.Opti()
     var_q = opti.variable(robot_model.model.nq)
-    totalcost = casadi.sumsqr(error_tool(var_q))
+
+    # Add a regularization term to keep the solution close to the neutral pose of the robot
+    # This helps with convergence and numerical stability
+    regularization = 1e-6 * casadi.sumsqr(var_q - pin.neutral(robot_model.model))
+    totalcost = casadi.sumsqr(error_tool(var_q)) + regularization
 
     constraints = casadi.vertcat(
         *[
