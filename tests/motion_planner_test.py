@@ -28,7 +28,7 @@ def test_motion_planning():
     planner = MotionPlanner(robot_model, GROUP_NAME)
     start_state = RobotState.from_named_state(robot_model, GROUP_NAME, "home")
     goal_state = start_state.clone()
-    goal_state[GROUP_NAME] = [0.0, 1.0, 1.0]
+    goal_state.set_group_qpos(GROUP_NAME, [0.0, 1.0, 1.0])
     plan = planner.plan(start_state, goal_state)
     assert plan is not None, "Expected a plan to be found"
     trajectory = generate_time_optimal_trajectory(robot_model, GROUP_NAME, plan)
@@ -51,7 +51,7 @@ def test_motion_planning():
         )
     )
     goal_state = start_state.clone()
-    goal_state[GROUP_NAME] = [1.0, -0.5, 1.57, 0.5, 0.25, 0.1]
+    goal_state.set_group_qpos(GROUP_NAME, [1.0, -0.5, 1.57, 0.5, 0.25, 0.1])
     plan = planner.plan(start_state, goal_state, timeout=5.0)
     assert plan is not None, "Expected a plan to be found"
 
@@ -72,6 +72,8 @@ def test_motion_planning():
         )
     )
     goal_state = start_state.clone()
-    goal_state[GROUP_NAME] = [1.0, 0.5, 1.0, 1.0, 0.0, 0.0, 0.0, 0.5, 0.25, 0.1]
+    goal_state.set_group_qpos(
+        GROUP_NAME, [1.0, 0.5, 1.0, 1.0, 0.0, 0.0, 0.0, 0.5, 0.25, 0.1]
+    )
     plan = planner.plan(start_state, goal_state, timeout=5.0)
     assert plan is not None, "Expected a plan to be found"

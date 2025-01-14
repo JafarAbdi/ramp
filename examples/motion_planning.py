@@ -52,7 +52,7 @@ for robot_path, goal_state in robots:
 
     planner = MotionPlanner(robot_model, group_name)
     goal = start_state.clone()
-    goal[group_name] = goal_state
+    goal.set_group_qpos(group_name, goal_state)
     if path := planner.plan(start_state, goal, timeout=5.0):
         print(f"Found a path with {len(path)} waypoints.")
         if visualize:

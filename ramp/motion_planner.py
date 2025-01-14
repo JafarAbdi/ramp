@@ -101,7 +101,9 @@ def from_ompl_state(space: ob.CompoundStateSpace, state: ob.State) -> list[float
             case ob.STATE_SPACE_SO3:
                 joint_positions.extend([substate.x, substate.y, substate.z, substate.w])
             case (
-                ob.STATE_SPACE_SE2 | ob.STATE_SPACE_DUBINS | ob.STATE_SPACE_REEDS_SHEPP
+                ob.STATE_SPACE_SE2
+                | ob.STATE_SPACE_DUBINS
+                | ob.STATE_SPACE_REEDS_SHEPP
             ):
                 joint_positions.extend(
                     [substate.getX(), substate.getY(), substate.getYaw()],
@@ -421,7 +423,7 @@ class MotionPlanner:
             The trajectory as a list of joint positions or None if no solution was found.
         """
         # Use start state as reference state for state validity checker and projection evaluator
-        group_goal_qpos = goal_state[self._group_name]
+        group_goal_qpos = goal_state.group_qpos(self._group_name)
         goal_state = start_state.clone()
         goal_state.set_group_qpos(self._group_name, group_goal_qpos)
 
