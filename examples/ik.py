@@ -79,27 +79,20 @@ class IKDemo:
             self.robot_model[GROUP_NAME].tcp_link_name,
         )
         target_joint_positions = ik_solver.solve(
-            target_pose, self.initial_state.actuated_qpos
+            target_pose, self.initial_state.actuated_qpos()
         )
-        if target_joint_positions is None:
-            LOGGER.info("IK failed")
-        else:
-            robot_state = self.initial_state.clone()
-            robot_state[GROUP_NAME] = target_joint_positions
-            LOGGER.info(f"IK succeeded: {target_joint_positions}")
-            LOGGER.info(
-                f"TCP Pose for target joint positions: {robot_state.get_frame_pose(self.robot_model[GROUP_NAME].tcp_link_name)}",
-            )
-            self.visualize(robot_state)
+        assert target_joint_positions is not None, "IK failed"
+        robot_state = self.initial_state.clone()
+        robot_state.set_group_qpos(GROUP_NAME, target_joint_positions)
+        LOGGER.info(f"IK succeeded: {target_joint_positions}")
+        LOGGER.info(
+            f"TCP Pose for target joint positions: {robot_state.get_frame_pose(self.robot_model[GROUP_NAME].tcp_link_name)}",
+        )
+        self.visualize(robot_state)
 
 
-def main():
-    configs = ["panda", "rrr", "kinova", "ur5e", "fr3_robotiq"]
-    for config in configs:
-        LOGGER.info(f"Running IK for {config}")
-        demo = IKDemo(config, len(sys.argv) > 1 and sys.argv[1] == "visualize")
-        demo.run()
-
-
-if __name__ == "__main__":
-    main()
+configs = ["panda", "rrr", "kinova", "ur5e", "fr3_robotiq"]
+for config in configs:
+    LOGGER.info(f"Running IK for {config}")
+    demo = IKDemo(config, len(sys.argv) > 1 and sys.argv[1] == "visualize")
+    demo.run()

@@ -248,6 +248,7 @@ def load_robot_model(
     Args:
         config_path: Path to the config file, URDF, XACRO, or MJCF's XML file
         motion_models: Motion models for the robot (only used for URDF, XACRO, or MJCF's XML files)
+        acceleration_limits: Acceleration limits for the robot (only used for URDF, XACRO, or MJCF's XML files)
 
     Returns:
         The robot model
