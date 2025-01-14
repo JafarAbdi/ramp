@@ -3,6 +3,7 @@
 import logging
 import pathlib
 import time
+import sys
 
 from rich.logging import RichHandler
 
@@ -24,11 +25,6 @@ GROUP_NAME = "arm"
 robot_model = load_robot_model(pathlib.Path("robots/panda_mj/configs.toml"))
 mj_interface = MuJoCoHardwareInterface(robot_model, "home")
 
-visualize = False
-if len(sys.argv) > 1 and sys.argv[1] == "visualize":
-    visualizer = Visualizer(robot_model)
-    visualizer.robot_state(robot_state)
-
 rs = mj_interface.read()
 rs.add_object(
     create_geometry_object(
@@ -41,17 +37,23 @@ mj_interface.add_decorative_geometry(
     "collision_sphere", "sphere", (0.5, 0.0, 0.25), (0.1, 0.0, 0.0)
 )
 
+visualizer = None
+if len(sys.argv) > 1 and sys.argv[1] == "visualize":
+    visualizer = Visualizer(robot_model)
+    visualizer.robot_state(mj_interface.read())
+
 
 rate = loop_rate_limiters.RateLimiter(10)
 while True:
-    distance = mj_interface.read().compute_distance("hand_0", "sphere")
+    rs = mj_interface.read()
+    distance = rs.compute_distance("hand_0", "sphere")
     mj_interface.add_decorative_geometry(
         "p1", "sphere", list(distance.getNearestPoint1()), (0.01, 0.0, 0.0)
     )
     mj_interface.add_decorative_geometry(
         "p2", "sphere", list(distance.getNearestPoint2()), (0.01, 0.0, 0.0)
     )
-    if visualize:
+    if visualizer is not None:
         visualizer.point("p1", distance.getNearestPoint1())
         visualizer.point("p2", distance.getNearestPoint2())
         visualizer.robot_state(rs)
