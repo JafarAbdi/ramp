@@ -58,7 +58,7 @@ def get_continuous_joint_indices(model: pinocchio.Model) -> np.ndarray:
 
 def joint_ids_to_name_indices(model: pinocchio.Model) -> dict[int, int]:
     """Return a mapping from joint ids to joint indices."""
-    # Joint id != Joint indices, so we need a mapping between them
+    # Joint id == Joint indices except for the universe joint, so we need a mapping between them
     joint_id_to_indices = {}
     for idx, joint in enumerate(model.joints):
         joint_id_to_indices[joint.id] = idx
