@@ -201,6 +201,7 @@ ompl = { url = "https://github.com/ompl/ompl/releases/download/prerelease/ompl-1
 
 [tool.pixi.pypi-dependencies]
 ramp = { path = ".", editable = true }
+mujoco_simulator_msgs = { path = "external/mujoco_simulator_msgs", editable = true }
 
 [tool.pixi.tasks]
 meshcat = "meshcat-server --open"
