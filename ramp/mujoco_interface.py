@@ -7,18 +7,16 @@ from pathlib import Path
 import mujoco
 import numpy as np
 import zenoh
+from mujoco_simulator_msgs.mujoco_simulator_pb2 import (
+    AddVisualGeometryRequest,
+    RemoveVisualGeometryRequest,
+    ResetModelRequest,
+)
 
 from ramp.exceptions import MissingJointError
 from ramp.hardware_interface import HardwareInterface
 from ramp.robot_model import RobotModel
 from ramp.robot_state import RobotState
-from mujoco_simulator_msgs.mujoco_simulator_pb2 import (
-    ResetModelRequest,
-    AddVisualGeometryRequest,
-    RemoveVisualGeometryRequest,
-    VisualGeometry,
-    Pose,
-)
 
 LOGGER = logging.getLogger(__name__)
 FILE_PATH = Path(__file__).parent
@@ -318,7 +316,6 @@ class MuJoCoHardwareInterface(HardwareInterface):
             request.model_filename = str(Path(model_filename).resolve())
         if keyframe:
             request.keyframe = keyframe
-        attachments = {}
         replies = list(
             self._session.get(
                 "reset",
