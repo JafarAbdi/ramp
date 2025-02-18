@@ -24,7 +24,6 @@ jobs:
       - uses: prefix-dev/setup-pixi@v0.8.3
         with:
           cache: true
-          frozen: true
           environments: lint
       - run: pixi run lint --color=always --show-diff-on-failure
   pytest:
