@@ -5008,6 +5008,8 @@ packages:
   - xz >=5.2.6,<6.0a0
   constrains:
   - python_abi 3.11.* *_cp311
+  arch: x86_64
+  platform: linux
   license: Python-2.0
   purls: []
   size: 31476523
@@ -5055,6 +5057,8 @@ packages:
   - xz >=5.2.6,<6.0a0
   constrains:
   - python_abi 3.11.* *_cp311
+  arch: arm64
+  platform: osx
   license: Python-2.0
   purls: []
   size: 14492975
@@ -5323,28 +5327,8 @@ packages:
   requires_python: '>=3.9'
 - pypi: .
   name: ramp
-  version: 0.0.post21+gfdaf2c8
-  sha256: e1352a12156fc3b6e22c31df4b9cf66dbe37084bb2ab339f32848bcb6c0ac510
-  requires_dist:
-  - meshcat
-  - pin-pink
-  - python-dateutil
-  - urdf-parser-py
-  - xacrodoc==0.4.1
-  - meshcat-shapes>=0.3.0,<0.4
-  - mujoco>=3.2.7
-  - eclipse-zenoh>=1.1.0,<2
-  - transforms3d>=0.4.2,<0.5
-  - loop-rate-limiters
-  - rich
-  - numpy
-  - scipy
-  requires_python: ==3.11
-  editable: true
-- pypi: .
-  name: ramp
-  version: 0.0.post21+gfdaf2c8.d20250212
-  sha256: e1352a12156fc3b6e22c31df4b9cf66dbe37084bb2ab339f32848bcb6c0ac510
+  version: 0.0.post27+g69fd7d6.d20250221
+  sha256: 5ead6a9fe5b2b5f20b5fd8d5741beec56790f349a5e0cc215ed0727fc8a3013c
   requires_dist:
   - meshcat
   - pin-pink
@@ -5901,11 +5885,11 @@ packages:
   - python >=3.11,<3.12
   - libstdcxx >=14
   - libgcc >=14
-  - nlopt >=2.10.0,<2.11.0a0
-  - orocos-kdl >=1.5.1,<1.6.0a0
   - urdfdom >=4.0.1,<4.1.0a0
   - python_abi 3.11.* *_cp311
   - spdlog >=1.15.1,<1.16.0a0
+  - orocos-kdl >=1.5.1,<1.6.0a0
+  - nlopt >=2.10.0,<2.11.0a0
   input:
     hash: 4d59938918960638079157cd417be3a34bb3baac5eb76f8b2fd862aeffc05657
     globs:
@@ -6031,13 +6015,6 @@ packages:
   requires_dist:
   - pyyaml
   - lxml
-- pypi: https://files.pythonhosted.org/packages/a3/8b/9dd44781a4e87746a426c56c3368c3da64fd90a130f582340cbf74397f8e/urdf_parser_py-0.0.4.tar.gz
-  name: urdf-parser-py
-  version: 0.0.4
-  sha256: e983f637145fded67bcff6a542302069bb975b2edf1b18318c093abba1b794cc
-  requires_dist:
-  - lxml
-  - pyyaml
 - conda: https://conda.anaconda.org/conda-forge/linux-64/urdfdom-4.0.1-h7fd8c06_0.conda
   sha256: d014f60a9db527bed8453bf2de9e5d3d85043bfa299f99176b12f9521b7e4bce
   md5: d29fa6134560c0728a8a6ab71fbf6376
