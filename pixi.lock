@@ -5008,8 +5008,6 @@ packages:
   - xz >=5.2.6,<6.0a0
   constrains:
   - python_abi 3.11.* *_cp311
-  arch: x86_64
-  platform: linux
   license: Python-2.0
   purls: []
   size: 31476523
@@ -5057,8 +5055,6 @@ packages:
   - xz >=5.2.6,<6.0a0
   constrains:
   - python_abi 3.11.* *_cp311
-  arch: arm64
-  platform: osx
   license: Python-2.0
   purls: []
   size: 14492975
@@ -5328,6 +5324,26 @@ packages:
 - pypi: .
   name: ramp
   version: 0.0.post27+g69fd7d6.d20250221
+  sha256: 5ead6a9fe5b2b5f20b5fd8d5741beec56790f349a5e0cc215ed0727fc8a3013c
+  requires_dist:
+  - meshcat
+  - pin-pink
+  - python-dateutil
+  - urdf-parser-py
+  - xacrodoc==0.4.1
+  - meshcat-shapes>=0.3.0,<0.4
+  - mujoco>=3.2.7
+  - eclipse-zenoh>=1.1.0,<2
+  - transforms3d>=0.4.2,<0.5
+  - loop-rate-limiters
+  - rich
+  - numpy
+  - scipy
+  requires_python: ==3.11
+  editable: true
+- pypi: .
+  name: ramp
+  version: 0.0.post28+g27fc421.d20250221
   sha256: 5ead6a9fe5b2b5f20b5fd8d5741beec56790f349a5e0cc215ed0727fc8a3013c
   requires_dist:
   - meshcat
@@ -5885,13 +5901,13 @@ packages:
   - python >=3.11,<3.12
   - libstdcxx >=14
   - libgcc >=14
-  - urdfdom >=4.0.1,<4.1.0a0
   - python_abi 3.11.* *_cp311
-  - spdlog >=1.15.1,<1.16.0a0
-  - orocos-kdl >=1.5.1,<1.6.0a0
   - nlopt >=2.10.0,<2.11.0a0
+  - orocos-kdl >=1.5.1,<1.6.0a0
+  - spdlog >=1.15.1,<1.16.0a0
+  - urdfdom >=4.0.1,<4.1.0a0
   input:
-    hash: 4d59938918960638079157cd417be3a34bb3baac5eb76f8b2fd862aeffc05657
+    hash: f1ccea2a47b8a8f34bc60015127272ab72dac6f26bcf7e1a90312456a2f5be06
     globs:
     - pixi.toml
 - conda: https://conda.anaconda.org/conda-forge/noarch/traitlets-5.14.3-pyhd8ed1ab_1.conda
