@@ -192,7 +192,7 @@ ur_robot_driver = { version = ">=2.2.11", channel = "https://repo.prefix.dev/ram
 franka_description = { version = ">=0.4.0", channel = "https://repo.prefix.dev/ramp" }
 robotiq_description = { version = ">=0.0.2", channel = "https://repo.prefix.dev/ramp" }
 kortex_description = { version = ">=0.2.2", channel = "https://repo.prefix.dev/ramp" }
-trac_ik = { path = "external/trac_ik/trac_ik_lib" }
+# trac_ik = { path = "external/trac_ik/trac_ik_lib" }
 
 [tool.pixi.target.linux.pypi-dependencies]
 ompl = { url = "https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.6.0-cp311-cp311-manylinux_2_28_x86_64.whl" }
