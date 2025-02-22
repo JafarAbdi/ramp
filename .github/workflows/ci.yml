@@ -43,7 +43,7 @@ jobs:
           frozen: true
           environments: test
       - run: |
-          pixi run -e test python3 -c "import sysconfig; print(sysconfig.get_path('platlib'))"
+          pixi run -e test python3 -c "import sysconfig; print(sysconfig.get_paths())"
       - run: pixi run --environment test install-mujoco
       - run: pixi run test
       - run: pixi run -e test test-coverage --color=yes
