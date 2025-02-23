@@ -23,6 +23,8 @@ jobs:
         run: sudo apt update && sudo apt-get install libxml2-utils
       - uses: prefix-dev/setup-pixi@v0.8.3
         with:
+          cache: true
+          cache-write: ${{ github.event_name == 'push' && github.ref_name == 'main' }}
           frozen: true
           environments: lint
       - run: pixi run lint --color=always --show-diff-on-failure
