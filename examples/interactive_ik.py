@@ -30,7 +30,7 @@ while True:
     rs = mj_interface.read()
     mocap = mj_interface.mocap()
     target_joint_positions = ik_solver.solve(
-        mocap[0] + [mocap[1][1], mocap[1][2], mocap[1][3], mocap[1][0]],
+        list(mocap.pos) + [mocap.quat[1], mocap.quat[2], mocap.quat[3], mocap.quat[0]],
         rs.actuated_qpos(),
     )
     if target_joint_positions is None:
