@@ -58,11 +58,8 @@ class IKSolver:
             target_pose[4],
             target_pose[5],
         ]
-        joint_positions = self._ik_solver.CartToJnt(
+        return self._ik_solver.CartToJnt(
             seed,
             target_pose,
             [1e-3, 1e-3, 1e-3, 1e-3, 1e-3, 1e-3],
         )
-        if len(joint_positions) == 0:
-            return None
-        return joint_positions
