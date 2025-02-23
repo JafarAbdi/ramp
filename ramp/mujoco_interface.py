@@ -7,6 +7,11 @@ from pathlib import Path
 import mujoco
 import numpy as np
 import zenoh
+from mujoco_simulator_msgs.mujoco_simulator_pb2 import (
+    AddVisualGeometryRequest,
+    RemoveVisualGeometryRequest,
+    ResetModelRequest,
+)
 
 from ramp.exceptions import MissingJointError
 from ramp.hardware_interface import HardwareInterface
@@ -202,28 +207,21 @@ class MuJoCoHardwareInterface(HardwareInterface):
         """
         assert len(pos) == 3
         assert len(size) == 3
+        request = AddVisualGeometryRequest()
+        request.name = name
+        geometry = request.visual_geometry
+        geometry.type = geom_type
+        geometry.pose.pos.extend(pos)
+        geometry.pose.quat.extend([1.0, 0.0, 0.0, 0.0])
+        geometry.size.extend(size)
+        geometry.rgba.extend([0.0, 1.0, 0.0, 1.0])
         replies = list(
             self._session.get(
                 "add_geometry",
-                payload=zenoh.ext.z_serialize(
-                    (
-                        name,
-                        json.dumps(
-                            {
-                                "type": geom_type,
-                                "pos": pos,
-                                "size": size,
-                            },
-                        ).encode(),
-                    ),
-                ),
+                payload=request.SerializeToString(),
             ),
         )
         assert len(replies) == 1
-        ok = zenoh.ext.z_deserialize(bool, replies[0].ok.payload)
-        if not ok:
-            msg = "Failed to add geometry object"
-            raise RuntimeError(msg)
 
     def remove_decorative_geometry(self, name: str):
         """Remove a decorative geometry object from the simulator.
@@ -234,17 +232,15 @@ class MuJoCoHardwareInterface(HardwareInterface):
         Raises:
             RuntimeError: If the remove geometry object request fails.
         """
+        request = RemoveVisualGeometryRequest()
+        request.name = name
         replies = list(
             self._session.get(
                 "remove_geometry",
-                payload=zenoh.ext.z_serialize(name),
+                payload=request.SerializeToString(),
             ),
         )
         assert len(replies) == 1
-        ok = zenoh.ext.z_deserialize(bool, replies[0].ok.payload)
-        if not ok:
-            msg = "Failed to add geometry object"
-            raise RuntimeError(msg)
 
     # TODO: Add removing models + Same for mocap
     def attach_model(  # noqa: PLR0913
@@ -315,16 +311,15 @@ class MuJoCoHardwareInterface(HardwareInterface):
         Raises:
             RuntimeError: If the reset request fails.
         """
-        attachments = {}
+        request = ResetModelRequest()
         if model_filename:
-            attachments["model_filename"] = str(Path(model_filename).resolve())
+            request.model_filename = str(Path(model_filename).resolve())
         if keyframe:
-            attachments["keyframe"] = keyframe
+            request.keyframe = keyframe
         replies = list(
             self._session.get(
                 "reset",
-                payload=zenoh.ext.z_serialize(obj=True),
-                attachment=zenoh.ext.z_serialize(attachments),
+                payload=zenoh.ZBytes(request.SerializeToString()),
             ),
         )
         assert len(replies) == 1

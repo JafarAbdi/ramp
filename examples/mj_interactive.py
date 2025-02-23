@@ -14,6 +14,7 @@ from ramp.robot_model import create_geometry_object
 import pinocchio
 import hppfcl
 import loop_rate_limiters
+from mujoco_simulator_msgs.mujoco_simulator_pb2 import GeometryType
 
 from ramp import Visualizer
 
@@ -34,7 +35,7 @@ rs.add_object(
     ),
 )
 mj_interface.add_decorative_geometry(
-    "collision_sphere", "sphere", (0.5, 0.0, 0.25), (0.1, 0.0, 0.0)
+    "collision_sphere", GeometryType.SPHERE, (0.5, 0.0, 0.25), (0.1, 0.0, 0.0)
 )
 
 visualizer = None
@@ -48,10 +49,10 @@ while True:
     rs = mj_interface.read()
     distance = rs.compute_distance("hand_0", "sphere")
     mj_interface.add_decorative_geometry(
-        "p1", "sphere", list(distance.getNearestPoint1()), (0.01, 0.0, 0.0)
+        "p1", GeometryType.SPHERE, list(distance.getNearestPoint1()), (0.01, 0.0, 0.0)
     )
     mj_interface.add_decorative_geometry(
-        "p2", "sphere", list(distance.getNearestPoint2()), (0.01, 0.0, 0.0)
+        "p2", GeometryType.SPHERE, list(distance.getNearestPoint2()), (0.01, 0.0, 0.0)
     )
     if visualizer is not None:
         visualizer.point("p1", distance.getNearestPoint1())
