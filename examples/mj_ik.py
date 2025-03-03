@@ -31,11 +31,12 @@ for target_pose in [
     robot_state = mj_interface.read()
     target_joint_positions = ik_solver.solve(
         target_pose,
-        robot_state.actuated_qpos,
+        robot_state.actuated_qpos(),
     )
     if target_joint_positions is None:
         LOGGER.info("IK failed")
     else:
         LOGGER.info(f"IK succeeded: {target_joint_positions}")
-        mj_interface.write(robot_model[GROUP_NAME].joints, target_joint_positions)
+        robot_state.set_group_qpos(GROUP_NAME, target_joint_positions)
+        mj_interface.write(robot_state)
     time.sleep(1.0)
