@@ -16,7 +16,6 @@ class KeyboardEvents:
     record_request: bool = False
     stop_request: bool = False
     discard_request: bool = False
-    toggle_gripper_request: bool = False
     exit_request: bool = False
     # Used to communicate with LeRobot
     dict_events: dict[str, bool] = field(default_factory=dict)
@@ -53,7 +52,6 @@ class KeyboardListener:
         """Handle key press from the keyboard."""
         with self._mutex:
             if key == "space":
-                self.events.toggle_gripper_request = True
                 self.events.dict_events["gripper"] = (
                     100 - self.events.dict_events["gripper"]
                 )
@@ -103,15 +101,6 @@ class KeyboardListener:
                 False,
             )
         return exit_request
-
-    def toggle_gripper(self):
-        """Toggle the gripper state."""
-        with self._mutex:
-            toggle_gripper_request, self.events.toggle_gripper_request = (
-                self.events.toggle_gripper_request,
-                False,
-            )
-        return toggle_gripper_request
 
     def stop(self):
         """Stop the keyboard listener."""
