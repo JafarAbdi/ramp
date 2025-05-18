@@ -111,6 +111,7 @@ def record(  # noqa: C901
     recording = False
     while True:
         if keyboard_listener.start_recording() and not recording:
+            keyboard_listener.events.dict_events["gripper"] = 100  # Open
             recording = True
             LOGGER.info("Reset the environment")
             move_robots_to_initial_position(robot)
