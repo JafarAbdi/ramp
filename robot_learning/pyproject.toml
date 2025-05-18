@@ -1,0 +1,45 @@
+[build-system]
+requires = ["setuptools", "setuptools-scm", "wheel"]
+
+[tool.setuptools_scm]
+version_scheme = "post-release"
+
+[project]
+name = "robot-learning"
+description = ""
+authors = [{ name = "Jafar Uruc", email = "jafar.uruc@gmail.com" }]
+dynamic = ["version"]
+classifiers = [
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.9",
+  "Programming Language :: Python :: 3.10",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+  "Programming Language :: Python :: 3.13",
+]
+requires-python = ">=3.9"
+readme = "README.md"
+dependencies = ["draccus>=0.10.0", "torch", "torchvision", "torchaudio"]
+
+[project.urls]
+repository = "https://github.com/JafarAbdi/robot-learning"
+
+[tool.setuptools.packages.find]
+include = ["robot_learning"]
+
+[project.scripts]
+
+[tool.mypy]
+python_version = '3.9'
+no_implicit_optional = true
+check_untyped_defs = true
+
+# If you run into `missing library stubs or py.typed marker` errors
+# and no stubs are available for this library, you can add an override
+# to ignore the missing imports.
+# [[tool.mypy.overrides]]
+# module = ["my_module"]
+# ignore_missing_imports = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
