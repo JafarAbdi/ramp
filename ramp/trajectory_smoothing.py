@@ -11,6 +11,45 @@ from ramp.robot_state import RobotState
 LOGGER = logging.getLogger(__name__)
 
 
+def generate_time_optimal_trajectory_from_waypoints(
+    waypoints: list[list[float]],
+    max_velocity: list[float],
+    max_acceleration: list[float],
+    resample_dt=0.1,
+) -> list[tuple[list[float], float]] | None:
+    """Parameterize the trajectory using Time Optimal Trajectory Generation http://www.golems.org/node/1570.
+
+    Args:
+        waypoints: The waypoints to parameterize.
+        max_velocity: The maximum velocity for each joint.
+        max_acceleration: The maximum acceleration for each joint.
+        resample_dt: The resampling time step.
+
+    Returns:
+        The parameterized trajectory as a list of (robot_state, time_from_start).
+    """
+    # The intermediate waypoints of the input path need to be blended so that the entire path is differentiable.
+    # This constant defines the maximum deviation allowed at those intermediate waypoints, in radians for revolute joints,
+    # or meters for prismatic joints.
+    max_deviation = 0.1
+    trajectory = totg.Trajectory(
+        totg.Path(
+            waypoints,
+            max_deviation,
+        ),
+        max_velocity,
+        max_acceleration,
+    )
+    if not trajectory.isValid():
+        LOGGER.error("Failed to parameterize trajectory")
+        return None
+    duration = trajectory.getDuration()
+    parameterized_trajectory = []
+    for t in np.append(np.arange(0.0, duration, resample_dt), duration):
+        parameterized_trajectory.append((trajectory.getPosition(t), t))
+    return parameterized_trajectory
+
+
 def generate_time_optimal_trajectory(
     robot_model: RobotModel,
     group_name: str,
@@ -31,7 +70,6 @@ def generate_time_optimal_trajectory(
     # The intermediate waypoints of the input path need to be blended so that the entire path is differentiable.
     # This constant defines the maximum deviation allowed at those intermediate waypoints, in radians for revolute joints,
     # or meters for prismatic joints.
-    max_deviation = 0.1
     if robot_model.acceleration_limits.size == 0:
         raise ValueError(
             "Acceleration limits are required for trajectory parameterization"
@@ -41,25 +79,16 @@ def generate_time_optimal_trajectory(
                 [f"{joint_name} = X" for joint_name in robot_model.joint_names],
             ),
         )
-    trajectory = totg.Trajectory(
-        totg.Path(
-            [waypoint.group_qpos(group_name) for waypoint in waypoints],
-            max_deviation,
-        ),
+    parameterized_trajectory = generate_time_optimal_trajectory_from_waypoints(
+        [waypoint.group_qpos(group_name) for waypoint in waypoints],
         robot_model.velocity_limits,
         robot_model.acceleration_limits,
+        resample_dt,
     )
-    if not trajectory.isValid():
-        LOGGER.error("Failed to parameterize trajectory")
-        return None
-    duration = trajectory.getDuration()
-    parameterized_trajectory = []
-    for t in np.append(np.arange(0.0, duration, resample_dt), duration):
+
+    trajectory = []
+    for trajectory_point, t in parameterized_trajectory:
         rs = waypoints[0].clone()
-        rs.set_group_qpos(group_name, trajectory.getPosition(t))
-        # TODO: Need a utility function for this
-        rs.qvel[robot_model[group_name].joint_velocity_indices] = (
-            trajectory.getVelocity(t)
-        )
-        parameterized_trajectory.append((rs, t))
-    return parameterized_trajectory
+        rs.set_group_qpos(group_name, trajectory_point)
+        trajectory.append((rs, t))
+    return trajectory
