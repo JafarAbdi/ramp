@@ -139,7 +139,6 @@ def record(  # noqa: C901
             LOGGER.info("Discarding episode")
             keyboard_listener.events.dict_events["exit_early"] = False
             dataset.clear_episode_buffer()
-            move_robots_to_initial_position(robot)
             recording = False
 
         if keyboard_listener.exit():
