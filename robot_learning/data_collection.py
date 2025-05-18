@@ -3,6 +3,8 @@
 import logging
 import os
 import pathlib
+import signal
+import sys
 from dataclasses import asdict
 from pprint import pformat
 
@@ -214,6 +216,16 @@ def control_robot(cfg: RecordControlConfig):
             },
         ),
     )
+
+    def signal_handler(sig, frame):
+        """Handle the SIGINT signal."""
+        LOGGER.info("SIGINT received, moving robots to a safe position")
+        move_robots_to_safe_position(robot)
+        robot.disconnect()
+        sys.exit(0)
+
+    # Register the signal handler
+    signal.signal(signal.SIGINT, signal_handler)
 
     record(robot, cfg)
 
