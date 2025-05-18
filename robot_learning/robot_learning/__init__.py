@@ -1,3 +1,5 @@
+"""Init."""
+
 import importlib.metadata
 import warnings
 

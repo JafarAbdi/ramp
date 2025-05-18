@@ -1,14 +1,11 @@
 [build-system]
 requires = ["setuptools", "setuptools-scm", "wheel"]
 
-[tool.setuptools_scm]
-version_scheme = "post-release"
-
 [project]
 name = "robot-learning"
+version = "0.0.0"
 description = ""
 authors = [{ name = "Jafar Uruc", email = "jafar.uruc@gmail.com" }]
-dynamic = ["version"]
 classifiers = [
   "Programming Language :: Python :: 3",
   "Programming Language :: Python :: 3.9",

@@ -226,6 +226,7 @@ pypot = { git = "https://github.com/pollen-robotics/pypot.git", branch = "suppor
 
 [tool.pixi.activation.env]
 HF_USER = "JafarUruc"
+LD_LIBRARY_PATH = "$CONDA_PREFIX/lib"
 
 [tool.pixi.tasks]
 meshcat = "meshcat-server --open"
@@ -236,6 +237,14 @@ test -e .mujoco || mkdir .mujoco &&
 wget https://github.com/google-deepmind/mujoco/releases/download/3.2.7/mujoco-3.2.7-linux-x86_64.tar.gz -O .mujoco/mujoco.tar.gz &&
 tar xzf .mujoco/mujoco.tar.gz --strip-components 1 -C $CONDA_PREFIX
 """
+data_collection = { cmd = [
+  "python",
+  "robot_learning/data_collection.py",
+  "--repo_id=$HF_USER/pick_boxes",
+  "--single_task='Grasp blue box and put it in the bin'",
+  "--fps=30",
+  "--push_to_hub=false",
+] }
 
 [tool.pixi.feature.test]
 dependencies = { pytest = ">=6", pytest-cov = "*", mypy = "*" }
