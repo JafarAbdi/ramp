@@ -10166,7 +10166,7 @@ packages:
   timestamp: 1744219738690
 - pypi: .
   name: ramp
-  version: 0.0.post33+gf6c232e.d20250518
+  version: 0.0.post37+gc271807.d20250518
   sha256: 4bde96473c9d15a33134f48aef17c6c54b7e9328ad35fd8d5e884b137276a9d1
   requires_dist:
   - meshcat

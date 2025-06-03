@@ -17,6 +17,7 @@ class KeyboardEvents:
     stop_request: bool = False
     discard_request: bool = False
     exit_request: bool = False
+    reset_robot_request: bool = False
     # Used to communicate with LeRobot
     dict_events: dict[str, bool] = field(default_factory=dict)
 
@@ -65,6 +66,8 @@ class KeyboardListener:
                 self.events.dict_events["exit_early"] = True
             elif key == "q":
                 self.events.exit_request = True
+            elif key == "p":
+                self.events.reset_robot_request = True
 
     def start_recording(self):
         """Start recording an episode."""
@@ -101,6 +104,15 @@ class KeyboardListener:
                 False,
             )
         return exit_request
+
+    def reset_robot(self):
+        """Reset the robot."""
+        with self._mutex:
+            reset_request, self.events.reset_robot_request = (
+                self.events.reset_robot_request,
+                False,
+            )
+        return reset_request
 
     def stop(self):
         """Stop the keyboard listener."""

@@ -71,11 +71,13 @@ def record(  # noqa: C901
         robot: The robot to record data from.
         cfg: The configuration for the recording.
     """
+    recorded_episodes = 0
     if cfg.resume:
         dataset = LeRobotDataset(
             cfg.repo_id,
             root=cfg.root,
         )
+        recorded_episodes = dataset.meta.total_episodes
         if len(robot.cameras) > 0:
             dataset.start_image_writer(
                 num_processes=cfg.num_image_writer_processes,
@@ -109,7 +111,6 @@ def record(  # noqa: C901
 
     keyboard_listener = KeyboardListener()
 
-    recorded_episodes = 0
     recording = False
     while True:
         if keyboard_listener.start_recording() and not recording:
@@ -132,9 +133,15 @@ def record(  # noqa: C901
                 single_task=cfg.single_task,
             )
 
+        if keyboard_listener.reset_robot() and not recording:
+            LOGGER.info("Resetting robot")
+            move_robots_to_initial_position(robot)
+            keyboard_listener.events.dict_events["gripper"] = 100  # Open
+
         if keyboard_listener.stop_recording() and recording:
             LOGGER.info(f"Stopping episode {recorded_episodes}")
             dataset.save_episode()
+            LOGGER.info(f"Episode {recorded_episodes} saved")
             recorded_episodes += 1
             recording = False
 
