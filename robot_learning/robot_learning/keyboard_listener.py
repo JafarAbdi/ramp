@@ -25,7 +25,6 @@ class KeyboardEvents:
         """Initialize the events dictionary."""
         self.dict_events = {
             "exit_early": False,
-            "gripper": 100,  # Open
         }
 
 
@@ -43,7 +42,7 @@ class KeyboardListener:
         )
         self._keyboard_listener_thread.start()
         LOGGER.info("Keyboard Controls:")
-        LOGGER.info("  space: Toggle gripper.")
+        LOGGER.info("  p: Reset robot.")
         LOGGER.info("  r: Record episode.")
         LOGGER.info("  s: Stop episode.")
         LOGGER.info("  d: Discard episode.")
@@ -52,11 +51,7 @@ class KeyboardListener:
     def _on_key_press(self, key):
         """Handle key press from the keyboard."""
         with self._mutex:
-            if key == "space":
-                self.events.dict_events["gripper"] = (
-                    100 - self.events.dict_events["gripper"]
-                )
-            elif key == "r":
+            if key == "r":
                 self.events.record_request = True
             elif key == "s":
                 self.events.stop_request = True

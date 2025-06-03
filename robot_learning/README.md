@@ -36,7 +36,6 @@ pixi run huggingface-cli upload JafarUruc/pick_boxes /home/juruc/.cache/huggingf
 
 ### Visualize the dataset
 
-
 ```bash
 pixi run python ./external/lerobot/lerobot/scripts/visualize_dataset_html.py --root ~/.cache/huggingface/lerobot/JafarUruc/pick_boxes/2025_05_18-20_36_19/ --repo-id JafarUruc/pick_boxes
 ```
@@ -45,4 +44,10 @@ pixi run python ./external/lerobot/lerobot/scripts/visualize_dataset_html.py --r
 
 ```bash
 pixi run python ../external/lerobot/lerobot/scripts/control_robot.py --robot.type=so100 --control.type=replay --control.fps=30 --control.repo_id=JafarUruc/pick_boxes --control.episode=0 --control.root=$HOME/.cache/huggingface/lerobot/JafarUruc/pick_boxes/2025_05_18-20_36_19
+```
+
+### Getting the camera index
+
+```bash
+pixi run python ./external/lerobot/lerobot/common/robot_devices/cameras/opencv.py
 ```

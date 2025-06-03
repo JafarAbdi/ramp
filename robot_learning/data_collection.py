@@ -11,7 +11,10 @@ from pprint import pformat
 import cv2
 from lerobot.common.datasets.lerobot_dataset import LeRobotDataset
 from lerobot.common.policies.factory import make_policy
-from lerobot.common.robot_devices.cameras.configs import IntelRealSenseCameraConfig
+from lerobot.common.robot_devices.cameras.configs import (
+    IntelRealSenseCameraConfig,
+    OpenCVCameraConfig,
+)
 from lerobot.common.robot_devices.control_configs import (
     RecordControlConfig,
 )
@@ -114,7 +117,6 @@ def record(  # noqa: C901
     recording = False
     while True:
         if keyboard_listener.start_recording() and not recording:
-            keyboard_listener.events.dict_events["gripper"] = 100  # Open
             recording = True
             LOGGER.info("Reset the environment")
             move_robots_to_initial_position(robot)
@@ -136,7 +138,6 @@ def record(  # noqa: C901
         if keyboard_listener.reset_robot() and not recording:
             LOGGER.info("Resetting robot")
             move_robots_to_initial_position(robot)
-            keyboard_listener.events.dict_events["gripper"] = 100  # Open
 
         if keyboard_listener.stop_recording() and recording:
             LOGGER.info(f"Stopping episode {recorded_episodes}")
@@ -206,10 +207,10 @@ def control_robot(cfg: RecordControlConfig):
                     },
                 ),
             },
-            calibration_dir=f"{SCRIPT_DIR}/.cache/calibration/so100/",
+            calibration_dir=f"{SCRIPT_DIR}/../.cache/calibration/so100/",
             cameras={
-                "wrist": IntelRealSenseCameraConfig(
-                    serial_number=145522062152,
+                "wrist": OpenCVCameraConfig(
+                    camera_index=2,
                     fps=30,
                     width=640,
                     height=480,
