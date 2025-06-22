@@ -114,6 +114,9 @@ def disable_collision(
         for link1, link2, reason in disable_collisions
     ]
     if verbose:
+        if not disable_collision_tags:
+            LOGGER.info("No collision pairs to disable.")
+            return
         disable_collision_formatted = "\n".join(disable_collision_tags)
         LOGGER.info(
             f"Disabling the following collision pairs:\n{disable_collision_formatted}",

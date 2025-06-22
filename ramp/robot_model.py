@@ -283,7 +283,11 @@ def load_robot_model(
                 joint_names.append(joint)
             configs = {
                 "robot": {
-                    "description": str(model_filename),
+                    "description": (
+                        str(model_filename)
+                        if model_filename.suffix == ".xacro"
+                        else str(config_path)
+                    ),
                     "base_link": "universe",
                 },
                 "group": {
