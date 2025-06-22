@@ -1,0 +1,24 @@
+<?xml version="1.0"?>
+<robot name="airplane">
+  <link name="world"/>
+  <link name="mobile_base">
+    <visual>
+      <geometry>
+        <box size="0.1 0.075 0.05"/>
+      </geometry>
+      <material name="gray">
+        <color rgba="0.5 0.5 0.5 1"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.1 0.075 0.05"/>
+      </geometry>
+    </collision>
+  </link>
+  <joint name="floating_joint" type="floating">
+    <parent link="world"/>
+    <child link="mobile_base"/>
+    <origin xyz="0 0 0" rpy="0 0 0"/>
+  </joint>
+</robot>
