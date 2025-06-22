@@ -51,7 +51,7 @@ for robot_path, goal_state in robots:
         visualizer.robot_state(start_state)
         input("Press Enter to plan a path to the goal state...")
 
-    planner = MotionPlanner(robot_model, group_name, "KPIECE1")
+    planner = MotionPlanner(robot_model, group_name)
     if path := planner.plan(start_state, goal_state, timeout=5.0):
         print(f"Found a path with {len(path)} waypoints.")
         if visualize:

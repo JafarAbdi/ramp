@@ -20,6 +20,9 @@ named_states = { home = [
   0.0, # joint3
 ] }
 
+[motion_model]
+floating_joint = "owen"
+
 [acceleration_limits]
 joint1 = 1.0
 joint2 = 1.0
