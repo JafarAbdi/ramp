@@ -9,6 +9,7 @@ from collections.abc import Callable
 
 import numpy as np
 import ompl
+import pinocchio
 from ompl import base as ob
 from ompl import geometric as og
 
@@ -123,6 +124,38 @@ def from_ompl_state(space: ob.CompoundStateSpace, state: ob.State) -> list[float
                         rotation.w,
                     ],
                 )
+            case ob.STATE_SPACE_OWEN:
+                rotation = pinocchio.Quaternion(
+                    pinocchio.utils.rpyToMatrix(np.array([0.0, 0.0, substate.yaw()])),
+                )
+                joint_positions.extend(
+                    [
+                        substate[0],
+                        substate[1],
+                        substate[2],
+                        rotation.x,
+                        rotation.y,
+                        rotation.z,
+                        rotation.w,
+                    ],
+                )
+            case ob.STATE_SPACE_VANA | ob.STATE_SPACE_VANA_OWEN:
+                rotation = pinocchio.Quaternion(
+                    pinocchio.utils.rpyToMatrix(
+                        np.array([0.0, substate.pitch(), substate.yaw()]),
+                    ),
+                )
+                joint_positions.extend(
+                    [
+                        substate[0],
+                        substate[1],
+                        substate[2],
+                        rotation.x,
+                        rotation.y,
+                        rotation.z,
+                        rotation.w,
+                    ],
+                )
             case _:
                 msg = f"Unsupported space: {subspace}"
                 raise ValueError(msg)
@@ -214,7 +247,11 @@ class ProjectionEvaluatorLinkPose(ob.ProjectionEvaluator):
 class MotionPlanner:
     """A wrapper for OMPL planners."""
 
-    def __init__(self, robot_model: RobotModel, group_name: str) -> None:
+    def __init__(  # noqa: PLR0912, C901
+        self,
+        robot_model: RobotModel,
+        group_name: str,
+    ) -> None:
         """Initialize the motion planner.
 
         Args:
@@ -252,8 +289,14 @@ class MotionPlanner:
                 )
             elif joint_type == PINOCCHIO_PLANAR_JOINT:
                 bounds = ob.RealVectorBounds(2)
-                bounds.setLow(0, -10.0)  # robot.model.lowerPositionLimit[joint.idx_q])
-                bounds.setHigh(0, 10.0)  # robot.model.upperPositionLimit[joint.idx_q])
+                bounds.setLow(
+                    0,
+                    -10.0,
+                )  # robot.model.lowerPositionLimit[joint.idx_q])
+                bounds.setHigh(
+                    0,
+                    10.0,
+                )  # robot.model.upperPositionLimit[joint.idx_q])
                 bounds.setLow(
                     1,
                     -10.0,
@@ -286,13 +329,40 @@ class MotionPlanner:
                 bounds = ob.RealVectorBounds(3)
                 bounds.setLow(-10)
                 bounds.setHigh(10)
-                space = ob.SE3StateSpace()
-                space.setBounds(bounds)
-                self._space.addSubspace(space, 1.0)
+                # > (x, y, z, pitch, yaw)
+                if robot_model.motion_model.get(joint_name) == "vana":
+                    space = ob.VanaStateSpace(
+                        1.0,
+                        1.57,
+                    )  # turning radius or pitch range (value or ())
+                    space.setBounds(bounds)
+                    self._space.addSubspace(space, 1.0)
+                # > (x, y, z, yaw)
+                elif robot_model.motion_model.get(joint_name) == "owen":
+                    space = ob.OwenStateSpace(
+                        1.0,
+                        1.57,
+                    )  # turning radius or pitch range (value or ())
+                    space.setBounds(bounds)
+                    self._space.addSubspace(space, 1.0)
+                # > (x, y, z, pitch, yaw)
+                elif robot_model.motion_model.get(joint_name) == "vana_owen":
+                    space = ob.VanaOwenStateSpace(
+                        1.0,
+                        1.57,
+                    )  # turning radius or pitch range (value or ())
+                    space.setBounds(bounds)
+                    self._space.addSubspace(space, 1.0)
+                else:
+                    space = ob.SE3StateSpace()
+                    space.setBounds(bounds)
+                    self._space.addSubspace(space, 1.0)
             else:
                 msg = f"Unknown joint type: '{joint_type}' for joint '{robot_model.model.names[int(idx)]}'"
                 raise ValueError(msg)
 
+        # self._space.sanityChecks() why this is failing? When having dubins/reeds_shepp
+        self._space.lock()
         self._setup = og.SimpleSetup(self._space)
 
     def _get_planner(self, planner):
@@ -317,6 +387,38 @@ class MotionPlanner:
             joint_index = self._robot_model[self._group_name].joint_indices[space_idx]
             size = joint_nq(self._robot_model.model.joints[int(joint_index)])
             match space.getType():
+                case ob.STATE_SPACE_VANA | ob.STATE_SPACE_VANA_OWEN:
+                    # TODO: This return the rpy w.r.t. the world frame, not the local frame
+                    rpy = pinocchio.utils.matrixToRpy(
+                        pinocchio.Quaternion(
+                            joint_positions[i + 6],
+                            joint_positions[i + 3],
+                            joint_positions[i + 4],
+                            joint_positions[i + 5],
+                        ).matrix(),
+                    )
+                    substate = internal_state[space_idx]
+                    substate[0] = joint_positions[i]
+                    substate[1] = joint_positions[i + 1]
+                    substate[2] = joint_positions[i + 2]
+                    substate.setPitch(rpy[1])
+                    substate.setYaw(rpy[2])
+                    i += size
+                case ob.STATE_SPACE_OWEN:
+                    rpy = pinocchio.utils.matrixToRpy(
+                        pinocchio.Quaternion(
+                            joint_positions[i + 6],
+                            joint_positions[i + 3],
+                            joint_positions[i + 4],
+                            joint_positions[i + 5],
+                        ).matrix(),
+                    )
+                    substate = internal_state[space_idx]
+                    substate[0] = joint_positions[i]
+                    substate[1] = joint_positions[i + 1]
+                    substate[2] = joint_positions[i + 2]
+                    substate.setYaw(rpy[2])
+                    i += size
                 case ob.STATE_SPACE_SO2:
                     substate = internal_state[space_idx]
                     substate.value = joint_positions[i]
@@ -404,7 +506,7 @@ class MotionPlanner:
             )
 
     # TODO: Add termination conditions doc/markdown/plannerTerminationConditions.md
-    def plan(
+    def plan(  # noqa: C901
         self,
         start_state: RobotState,
         group_goal_qpos: np.ndarray | list[float],
@@ -470,20 +572,22 @@ class MotionPlanner:
         LOGGER.debug(
             f"Path length after simplifySolution: {simplified_path.length()} with {len(simplified_path.getStates())} states",
         )
-        # self._setup.getPathSimplifier() Fails with
-        # TypeError: No Python class registered for C++ class std::shared_ptr<ompl::geometric::PathSimplifier>
-        path_simplifier = og.PathSimplifier(self._setup.getSpaceInformation())
-        path_simplifier.ropeShortcutPath(simplified_path)
-        LOGGER.debug(
-            f"Simplified path length after ropeShortcutPath: {simplified_path.length()} with {len(simplified_path.getStates())} states",
-        )
-        path_simplifier.smoothBSpline(simplified_path)
-        LOGGER.debug(
-            f"Simplified path length after smoothBSpline: {simplified_path.length()} with {len(simplified_path.getStates())} states",
-        )
+        # # self._setup.getPathSimplifier() Fails with
+        # # TypeError: No Python class registered for C++ class std::shared_ptr<ompl::geometric::PathSimplifier>
+        # TODO: Make this optional
+        if self._space.isMetricSpace():
+            path_simplifier = og.PathSimplifier(self._setup.getSpaceInformation())
+            path_simplifier.ropeShortcutPath(simplified_path)
+            LOGGER.debug(
+                f"Simplified path length after ropeShortcutPath: {simplified_path.length()} with {len(simplified_path.getStates())} states",
+            )
+            path_simplifier.smoothBSpline(simplified_path)
+            LOGGER.debug(
+                f"Simplified path length after smoothBSpline: {simplified_path.length()} with {len(simplified_path.getStates())} states",
+            )
 
-        if not simplified_path.check():
-            LOGGER.warning("Simplified path fails check!")
+            if not simplified_path.check():
+                LOGGER.warning("Simplified path fails check!")
 
         LOGGER.debug("Interpolating simplified path...")
         simplified_path.interpolate()

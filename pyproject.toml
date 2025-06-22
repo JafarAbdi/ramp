@@ -218,7 +218,8 @@ cd $PIXI_PROJECT_ROOT/.pixi &&
 """
 
 [tool.pixi.feature.test]
-dependencies = { pytest = ">=6", pytest-cov = "*", mypy = "*" }
+# pytest-repeat makes it easy to repeat a test `pixi run test tests/motion_planner_test.py --count 10`
+dependencies = { pytest = ">=6", pytest-cov = "*", mypy = "*", pytest-repeat = "*" }
 tasks = { test = { cmd = "python3 -m pytest --capture=no", depends-on = [
   { task = "install-mujoco", environment = "test" },
 ] }, test-coverage = "pytest --cov=ramp --cov-report=xml --cov-report=term-missing" }
