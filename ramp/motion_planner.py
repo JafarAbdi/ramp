@@ -102,9 +102,7 @@ def from_ompl_state(space: ob.CompoundStateSpace, state: ob.State) -> list[float
             case ob.STATE_SPACE_SO3:
                 joint_positions.extend([substate.x, substate.y, substate.z, substate.w])
             case (
-                ob.STATE_SPACE_SE2
-                | ob.STATE_SPACE_DUBINS
-                | ob.STATE_SPACE_REEDS_SHEPP
+                ob.STATE_SPACE_SE2 | ob.STATE_SPACE_DUBINS | ob.STATE_SPACE_REEDS_SHEPP
             ):
                 joint_positions.extend(
                     [substate.getX(), substate.getY(), substate.getYaw()],
@@ -572,20 +570,22 @@ class MotionPlanner:
         LOGGER.debug(
             f"Path length after simplifySolution: {simplified_path.length()} with {len(simplified_path.getStates())} states",
         )
-        # self._setup.getPathSimplifier() Fails with
-        # TypeError: No Python class registered for C++ class std::shared_ptr<ompl::geometric::PathSimplifier>
-        path_simplifier = og.PathSimplifier(self._setup.getSpaceInformation())
-        path_simplifier.ropeShortcutPath(simplified_path)
-        LOGGER.debug(
-            f"Simplified path length after ropeShortcutPath: {simplified_path.length()} with {len(simplified_path.getStates())} states",
-        )
-        path_simplifier.smoothBSpline(simplified_path)
-        LOGGER.debug(
-            f"Simplified path length after smoothBSpline: {simplified_path.length()} with {len(simplified_path.getStates())} states",
-        )
+        # # self._setup.getPathSimplifier() Fails with
+        # # TypeError: No Python class registered for C++ class std::shared_ptr<ompl::geometric::PathSimplifier>
+        # TODO: Make this optional
+        if self._space.isMetricSpace():
+            path_simplifier = og.PathSimplifier(self._setup.getSpaceInformation())
+            path_simplifier.ropeShortcutPath(simplified_path)
+            LOGGER.debug(
+                f"Simplified path length after ropeShortcutPath: {simplified_path.length()} with {len(simplified_path.getStates())} states",
+            )
+            path_simplifier.smoothBSpline(simplified_path)
+            LOGGER.debug(
+                f"Simplified path length after smoothBSpline: {simplified_path.length()} with {len(simplified_path.getStates())} states",
+            )
 
-        if not simplified_path.check():
-            LOGGER.warning("Simplified path fails check!")
+            if not simplified_path.check():
+                LOGGER.warning("Simplified path fails check!")
 
         LOGGER.debug("Interpolating simplified path...")
         simplified_path.interpolate()
