@@ -209,14 +209,19 @@ meshcat = "meshcat-server --open"
 jupyter = "jupyter lab"
 # Needed for trac-ik
 install-mujoco = """
-test -e .mujoco || mkdir .mujoco &&
-wget https://github.com/google-deepmind/mujoco/releases/download/3.2.7/mujoco-3.2.7-linux-x86_64.tar.gz -O .mujoco/mujoco.tar.gz &&
-tar xzf .mujoco/mujoco.tar.gz --strip-components 1 -C $CONDA_PREFIX
+cd $PIXI_PROJECT_ROOT/.pixi &&
+(
+  test -f "mujoco.tar.gz" || wget https://github.com/google-deepmind/mujoco/releases/download/3.2.7/mujoco-3.2.7-linux-x86_64.tar.gz -O mujoco.tar.gz
+) && (
+  test -f "$CONDA_PREFIX/lib/libmujoco.so" || tar xzf mujoco.tar.gz --strip-components 1 -C $CONDA_PREFIX
+)
 """
 
 [tool.pixi.feature.test]
 dependencies = { pytest = ">=6", pytest-cov = "*", mypy = "*" }
-tasks = { test = "python3 -m pytest --capture=no", test-coverage = "pytest --cov=ramp --cov-report=xml --cov-report=term-missing" }
+tasks = { test = { cmd = "python3 -m pytest --capture=no", depends-on = [
+  { task = "install-mujoco", environment = "test" },
+] }, test-coverage = "pytest --cov=ramp --cov-report=xml --cov-report=term-missing" }
 
 [tool.pixi.feature.lint]
 dependencies = { pre-commit = "*", prettier = "*", taplo = "*" }
