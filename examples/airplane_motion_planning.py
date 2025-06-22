@@ -18,8 +18,7 @@ visualize = False
 if len(sys.argv) > 1 and sys.argv[1] == "visualize":
     visualize = True
 
-# rotation = pin.Quaternion(0.707, 0.707, 0.0, 0.0).normalize()
-rotation = pin.Quaternion(0.707, 0.0, 0.0, 0.707).normalize()
+rotation = pin.Quaternion(0.707, 0.707, 0.0, 0.0).normalize()
 goal_state = [0.4, 0.4, 0.4, rotation.x, rotation.y, rotation.z, rotation.w]
 
 robot_model = load_robot_model(
@@ -50,11 +49,7 @@ if visualize:
     input("Press Enter to plan a path to the goal state...")
 
 planner = MotionPlanner(robot_model, group_name)
-planner._space.setLongestValidSegmentFraction(0.001)
 if path := planner.plan(start_state, goal_state, timeout=10.0):
     print(f"Found a path with {len(path)} waypoints.")
     if visualize:
-        # for rs in path:
-        #     input("Press Enter to visualize the next waypoint...")
-        #     visualizer.robot_state(rs)
         visualizer.robot_trajectory(path)
