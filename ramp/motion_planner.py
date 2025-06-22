@@ -102,7 +102,9 @@ def from_ompl_state(space: ob.CompoundStateSpace, state: ob.State) -> list[float
             case ob.STATE_SPACE_SO3:
                 joint_positions.extend([substate.x, substate.y, substate.z, substate.w])
             case (
-                ob.STATE_SPACE_SE2 | ob.STATE_SPACE_DUBINS | ob.STATE_SPACE_REEDS_SHEPP
+                ob.STATE_SPACE_SE2
+                | ob.STATE_SPACE_DUBINS
+                | ob.STATE_SPACE_REEDS_SHEPP
             ):
                 joint_positions.extend(
                     [substate.getX(), substate.getY(), substate.getYaw()],
@@ -504,7 +506,7 @@ class MotionPlanner:
             )
 
     # TODO: Add termination conditions doc/markdown/plannerTerminationConditions.md
-    def plan(
+    def plan(  # noqa: C901
         self,
         start_state: RobotState,
         group_goal_qpos: np.ndarray | list[float],
