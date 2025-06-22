@@ -227,7 +227,13 @@ def load_models_from_xacro(
         parsed_file_path = parsed_file.name
         parsed_file.write(robot_description)
 
-    return (Path(parsed_file_path), pinocchio.buildModelsFromUrdf(parsed_file_path))
+    return (
+        Path(parsed_file_path),
+        pinocchio.buildModelsFromUrdf(
+            parsed_file_path,
+            package_dirs=[robot_description_path.parent.resolve()],
+        ),
+    )
 
 
 def load_models(

@@ -195,10 +195,10 @@ robotiq_description = { version = ">=0.0.2", channel = "https://repo.prefix.dev/
 kortex_description = { version = ">=0.2.2", channel = "https://repo.prefix.dev/ramp" }
 
 [tool.pixi.target.linux.pypi-dependencies]
-ompl = { url = "https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.6.0-cp311-cp311-manylinux_2_28_x86_64.whl" }
+ompl = { url = "https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.8.0-cp311-cp311-manylinux_2_28_x86_64.whl" }
 
 [tool.pixi.target.osx-arm64.pypi-dependencies]
-ompl = { url = "https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.6.0-cp311-cp311-macosx_14_0_arm64.whl" }
+ompl = { url = "https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.8.0-cp311-cp311-macosx_15_0_arm64.whl" }
 
 [tool.pixi.pypi-dependencies]
 ramp = { path = ".", editable = true }
@@ -209,14 +209,19 @@ meshcat = "meshcat-server --open"
 jupyter = "jupyter lab"
 # Needed for trac-ik
 install-mujoco = """
-test -e .mujoco || mkdir .mujoco &&
-wget https://github.com/google-deepmind/mujoco/releases/download/3.2.7/mujoco-3.2.7-linux-x86_64.tar.gz -O .mujoco/mujoco.tar.gz &&
-tar xzf .mujoco/mujoco.tar.gz --strip-components 1 -C $CONDA_PREFIX
+cd $PIXI_PROJECT_ROOT/.pixi &&
+(
+  test -f "mujoco.tar.gz" || wget https://github.com/google-deepmind/mujoco/releases/download/3.2.7/mujoco-3.2.7-linux-x86_64.tar.gz -O mujoco.tar.gz
+) && (
+  test -f "$CONDA_PREFIX/lib/libmujoco.so" || tar xzf mujoco.tar.gz --strip-components 1 -C $CONDA_PREFIX
+)
 """
 
 [tool.pixi.feature.test]
 dependencies = { pytest = ">=6", pytest-cov = "*", mypy = "*" }
-tasks = { test = "python3 -m pytest --capture=no", test-coverage = "pytest --cov=ramp --cov-report=xml --cov-report=term-missing" }
+tasks = { test = { cmd = "python3 -m pytest --capture=no", depends-on = [
+  { task = "install-mujoco", environment = "test" },
+] }, test-coverage = "pytest --cov=ramp --cov-report=xml --cov-report=term-missing" }
 
 [tool.pixi.feature.lint]
 dependencies = { pre-commit = "*", prettier = "*", taplo = "*" }
