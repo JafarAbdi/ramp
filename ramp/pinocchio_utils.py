@@ -22,6 +22,7 @@ from ramp.constants import (
     PINOCCHIO_PLANAR_JOINT,
     PINOCCHIO_UNBOUNDED_JOINT,
     ROBOT_DESCRIPTION_PREFIX,
+    PINOCCHIO_MIMIC_JOINT,
 )
 from ramp.exceptions import (
     RobotDescriptionNotFoundError,
@@ -123,31 +124,29 @@ def load_mimic_joints(
             np.asarray([]),
             np.asarray([]),
         )
-    with filter_urdf_parser_stderr():
-        urdf = urdf_parser.URDF.from_xml_file(robot_description)
     mimic_joint_ids = []
     mimic_joint_indices = []
     mimic_joint_multipliers = []
     mimic_joint_offsets = []
     mimicked_joint_indices = []
     joint_id_to_indices = joint_ids_to_indices(model)
-    for joint in urdf.joints:
-        if joint.mimic is not None:
-            mimicked_joint_index = joint_id_to_indices[
-                model.getJointId(joint.mimic.joint)
-            ]
-            mimic_joint_index = joint_id_to_indices[model.getJointId(joint.name)]
-            mimic_joint_ids.append(model.getJointId(joint.name))
-            assert (
-                len(mimic_joint_index) == 1
-            ), f"Only single joint mimic supported {mimic_joint_index}"
-            assert (
-                len(mimicked_joint_index) == 1
-            ), f"Only single mimicked joint is supported {mimicked_joint_index}"
-            mimicked_joint_indices.append(mimicked_joint_index[0])
-            mimic_joint_indices.append(mimic_joint_index[0])
-            mimic_joint_multipliers.append(joint.mimic.multiplier or 1.0)
-            mimic_joint_offsets.append(joint.mimic.offset or 0.0)
+    for mimic_joint_id, mimicked_joint_id in zip(
+        model.mimicking_joints, model.mimicked_joints, strict=True
+    ):
+        print(f"Mimic joint {model.joints[mimic_joint_id]}")
+        print(f"Mimicked joint {model.joints[mimicked_joint_id]}")
+        print(f"Mimic joint {mimic_joint_id} mimics {mimicked_joint_id}")
+        mimic_joint_ids.append(mimic_joint_id)
+        mimicked_joint_index = joint_id_to_indices[mimicked_joint_id]
+        assert (
+            len(mimicked_joint_index) == 1
+        ), f"Only single mimicked joint is supported {mimicked_joint_id}"
+        mimic_joint_indices.append(joint_id_to_indices[mimic_joint_id])
+        mimicked_joint_indices.append(joint_id_to_indices[mimicked_joint_id])
+        joint = model.joints[mimic_joint_id]
+        assert joint.shortname() == PINOCCHIO_MIMIC_JOINT
+        mimic_joint_multipliers.append(joint.extract().scaling)
+        mimic_joint_offsets.append(joint.extract().offset)
     return (
         np.asarray(mimic_joint_ids),
         np.asarray(mimic_joint_indices),
@@ -155,29 +154,6 @@ def load_mimic_joints(
         np.asarray(mimic_joint_offsets),
         np.asarray(mimicked_joint_indices),
     )
-
-
-@contextlib.contextmanager
-def filter_urdf_parser_stderr():
-    """A context manager that filters stderr for urdf_parser_py's annoying errors."""
-    filters = [r"Unknown tag", r"Unknown attribute"]
-    original_stderr = sys.stderr
-    string_io = io.StringIO()
-
-    class FilteredStderr:
-        def write(self, message):
-            if not any(re.search(pattern, message) for pattern in filters):
-                original_stderr.write(message)
-            string_io.write(message)
-
-        def flush(self):
-            original_stderr.flush()
-
-    sys.stderr = FilteredStderr()
-    try:
-        yield string_io
-    finally:
-        sys.stderr = original_stderr
 
 
 def get_robot_description_path(robot_description: str) -> Path:
@@ -241,6 +217,7 @@ def load_models_from_xacro(
         pinocchio.buildModelsFromUrdf(
             parsed_file_path,
             package_dirs=[robot_description_path.parent.resolve()],
+            mimic=True,
         ),
     )
 
