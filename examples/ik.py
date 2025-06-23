@@ -91,7 +91,7 @@ class IKDemo:
         self.visualize(robot_state)
 
 
-configs = ["panda", "rrr", "kinova", "ur5e", "fr3_robotiq"]
+configs = ["panda", "rrr", "kinova", "ur5e"]
 for config in configs:
     LOGGER.info(f"Running IK for {config}")
     demo = IKDemo(config, len(sys.argv) > 1 and sys.argv[1] == "visualize")

@@ -93,7 +93,7 @@ def ik(config_name: str, visualize: bool):
         LOGGER.exception(f"ERROR in convergence, plotting debug info {sol_q=}.")
 
 
-for config_name in ["panda", "kinova", "ur5e", "fr3_robotiq"]:
+for config_name in ["panda", "kinova", "ur5e"]:
     visualize = "visualize" in sys.argv
     if visualize:
         input(f"Press Enter to start {config_name} IK")
