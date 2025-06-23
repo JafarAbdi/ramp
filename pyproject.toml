@@ -185,8 +185,7 @@ trac_ik = { path = "external/trac_ik/trac_ik_lib" }
 mujoco_simulator_msgs = { path = "external/mujoco_simulator_msgs" }
 
 [tool.pixi.target.linux.dependencies]
-# TODO: Why can't install version 3.3.1 on osx-arm64?
-pinocchio = "==3.3.1"
+pinocchio = ">=3.7.0,<3.8.0"
 realsense2_description = { version = ">=4.54.1", channel = "https://repo.prefix.dev/ramp" }
 ur_description = { version = ">=2.1.4", channel = "https://repo.prefix.dev/ramp" }
 ur_robot_driver = { version = ">=2.2.11", channel = "https://repo.prefix.dev/ramp" }

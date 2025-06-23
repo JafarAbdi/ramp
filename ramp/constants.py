@@ -19,6 +19,7 @@ PINOCCHIO_SPHERICAL_JOINT = "JointModelSphericalZYX"
 PINOCCHIO_TRANSLATION_JOINT = "JointModelTranslation"
 PINOCCHIO_FREEFLYER_JOINT = "JointModelFreeFlyer"
 PINOCCHIO_REVOLUTE_UNALIGNED_JOINT = "JointModelRevoluteUnaligned"
+PINOCCHIO_MIMIC_JOINT = "JointModelMimic"
 # JointModelRevoluteUnboundedUnaligned
 # JointModelPrismaticUnaligned
 

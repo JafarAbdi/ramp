@@ -73,11 +73,21 @@ class RobotModel:
             get_continuous_joint_indices(self.model),
         )
         (
+            mimic_joint_ids,
             mimic_joint_indices,
             mimic_joint_multipliers,
             mimic_joint_offsets,
             mimicked_joint_indices,
         ) = load_mimic_joints(self.model_filename, self.model)
+        # Check if any of the joints is a mimic joint
+        for group in self.groups.values():
+            for joint_name in group.joints:
+                joint_id = self.model.getJointId(joint_name)
+                if joint_id in mimic_joint_ids:
+                    msg = f"Joint '{joint_name}' is a mimic joint, which is not allowed in groups."
+                    raise ValueError(
+                        msg,
+                    )
         object.__setattr__(self, "mimic_joint_indices", mimic_joint_indices)
         object.__setattr__(self, "mimic_joint_multipliers", mimic_joint_multipliers)
         object.__setattr__(self, "mimic_joint_offsets", mimic_joint_offsets)

@@ -15,6 +15,9 @@ joints = [
 tcp_link_name = "tcp_link"
 named_states = { home = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] }
 
+[group.gripper]
+joints = ["finger_joint"]
+
 # URDF doesn't provide acceleration limits
 [acceleration_limits]
 shoulder_pan_joint = 1.0

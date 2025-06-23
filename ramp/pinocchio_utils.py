@@ -105,7 +105,7 @@ def joint_ids_to_velocity_indices(model: pinocchio.Model) -> dict[int, int]:
 def load_mimic_joints(
     robot_description: Path,
     model: pinocchio.Model,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Get the mimic joints indices, multipliers, offsets and mimicked joint indices.
 
     Args:
@@ -116,9 +116,16 @@ def load_mimic_joints(
         The mimic joint indices, multipliers, offsets and mimicked joint indices.
     """
     if robot_description.suffix != ".urdf":
-        return np.asarray([]), np.asarray([]), np.asarray([]), np.asarray([])
+        return (
+            np.asarray([]),
+            np.asarray([]),
+            np.asarray([]),
+            np.asarray([]),
+            np.asarray([]),
+        )
     with filter_urdf_parser_stderr():
         urdf = urdf_parser.URDF.from_xml_file(robot_description)
+    mimic_joint_ids = []
     mimic_joint_indices = []
     mimic_joint_multipliers = []
     mimic_joint_offsets = []
@@ -130,6 +137,7 @@ def load_mimic_joints(
                 model.getJointId(joint.mimic.joint)
             ]
             mimic_joint_index = joint_id_to_indices[model.getJointId(joint.name)]
+            mimic_joint_ids.append(model.getJointId(joint.name))
             assert (
                 len(mimic_joint_index) == 1
             ), f"Only single joint mimic supported {mimic_joint_index}"
@@ -141,6 +149,7 @@ def load_mimic_joints(
             mimic_joint_multipliers.append(joint.mimic.multiplier or 1.0)
             mimic_joint_offsets.append(joint.mimic.offset or 0.0)
     return (
+        np.asarray(mimic_joint_ids),
         np.asarray(mimic_joint_indices),
         np.asarray(mimic_joint_multipliers),
         np.asarray(mimic_joint_offsets),
