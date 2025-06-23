@@ -34,9 +34,6 @@ def test_configs():
         FILE_PATH / ".." / "robots" / "kinova" / "kinova.urdf.xacro"
     )
     robot_model = load_robot_model(
-        FILE_PATH / ".." / "robots" / "fr3_robotiq" / "fr3.urdf.xacro"
-    )
-    robot_model = load_robot_model(
         FILE_PATH / ".." / "robots" / "planar_rrr" / "robot.urdf.xacro"
     )
 

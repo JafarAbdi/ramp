@@ -14,6 +14,7 @@ import toml
 from pinocchio import casadi as cpin
 from rich import pretty
 
+from ramp.constants import PINOCCHIO_MIMIC_JOINT
 from ramp.exceptions import (
     MissingAccelerationLimitError,
     MissingBaseLinkError,
@@ -25,7 +26,6 @@ from ramp.pinocchio_utils import (
     joint_ids_to_indices,
     joint_ids_to_name_indices,
     joint_ids_to_velocity_indices,
-    load_mimic_joints,
     load_models,
     load_xacro,
 )
@@ -59,10 +59,6 @@ class RobotModel:
     joint_acceleration_limits: InitVar[dict[str, float]]
     acceleration_limits: np.ndarray = field(init=False)
     joint_names: list[str] = field(init=False)
-    mimic_joint_indices: np.ndarray = field(init=False)
-    mimic_joint_multipliers: np.ndarray = field(init=False)
-    mimic_joint_offsets: np.ndarray = field(init=False)
-    mimicked_joint_indices: np.ndarray = field(init=False)
     continuous_joint_indices: np.ndarray = field(init=False)
 
     def __post_init__(self, joint_acceleration_limits):
@@ -72,26 +68,15 @@ class RobotModel:
             "continuous_joint_indices",
             get_continuous_joint_indices(self.model),
         )
-        (
-            mimic_joint_ids,
-            mimic_joint_indices,
-            mimic_joint_multipliers,
-            mimic_joint_offsets,
-            mimicked_joint_indices,
-        ) = load_mimic_joints(self.model_filename, self.model)
         # Check if any of the joints is a mimic joint
         for group in self.groups.values():
             for joint_name in group.joints:
                 joint_id = self.model.getJointId(joint_name)
-                if joint_id in mimic_joint_ids:
+                if joint_id in self.model.mimicking_joints:
                     msg = f"Joint '{joint_name}' is a mimic joint, which is not allowed in groups."
                     raise ValueError(
                         msg,
                     )
-        object.__setattr__(self, "mimic_joint_indices", mimic_joint_indices)
-        object.__setattr__(self, "mimic_joint_multipliers", mimic_joint_multipliers)
-        object.__setattr__(self, "mimic_joint_offsets", mimic_joint_offsets)
-        object.__setattr__(self, "mimicked_joint_indices", mimicked_joint_indices)
         joint_names = []
         for group in self.groups.values():
             joint_names.extend(group.joints)
@@ -283,7 +268,11 @@ def load_robot_model(
             )
             joint_names = []
             for joint in model.names:
-                if joint == "universe":
+                if (
+                    joint == "universe"
+                    or model.joints[model.getJointId(joint)].shortname()
+                    == PINOCCHIO_MIMIC_JOINT
+                ):
                     continue
                 joint_names.append(joint)
             configs = {
@@ -366,7 +355,6 @@ def as_pinocchio_qpos(
     q = np.copy(reference_qpos)
     q[robot_model[group_name].joint_position_indices] = group_qpos
 
-    apply_pinocchio_mimic_joints(robot_model, q)
     apply_pinocchio_continuous_joints(robot_model, q)
     return q
 
@@ -409,16 +397,6 @@ def apply_pinocchio_continuous_joints(robot_model: RobotModel, q: np.ndarray):
     ) = (
         np.cos(q[robot_model.continuous_joint_indices]),
         np.sin(q[robot_model.continuous_joint_indices]),
-    )
-
-
-def apply_pinocchio_mimic_joints(robot_model: RobotModel, q: np.ndarray):
-    """Apply mimic joints to the joint positions."""
-    if robot_model.mimic_joint_indices.size == 0:
-        return
-    q[robot_model.mimic_joint_indices] = (
-        q[robot_model.mimicked_joint_indices] * robot_model.mimic_joint_multipliers
-        + robot_model.mimic_joint_offsets
     )
 
 

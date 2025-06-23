@@ -1,12 +1,9 @@
 """Utility functions for working with Pinocchio models."""
 
-import contextlib
 import importlib
-import io
 import logging
 import os
 import re
-import sys
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -14,7 +11,6 @@ import numpy as np
 import pinocchio
 import pinocchio.visualize
 import xacrodoc
-from urdf_parser_py import urdf as urdf_parser
 from xacrodoc import XacroDoc
 
 from ramp.constants import (
@@ -102,84 +98,6 @@ def joint_ids_to_velocity_indices(model: pinocchio.Model) -> dict[int, int]:
     return joint_id_to_indices
 
 
-def load_mimic_joints(
-    robot_description: Path,
-    model: pinocchio.Model,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Get the mimic joints indices, multipliers, offsets and mimicked joint indices.
-
-    Args:
-        robot_description: The robot description file path
-        model: The pinocchio model
-
-    Returns:
-        The mimic joint indices, multipliers, offsets and mimicked joint indices.
-    """
-    if robot_description.suffix != ".urdf":
-        return (
-            np.asarray([]),
-            np.asarray([]),
-            np.asarray([]),
-            np.asarray([]),
-            np.asarray([]),
-        )
-    with filter_urdf_parser_stderr():
-        urdf = urdf_parser.URDF.from_xml_file(robot_description)
-    mimic_joint_ids = []
-    mimic_joint_indices = []
-    mimic_joint_multipliers = []
-    mimic_joint_offsets = []
-    mimicked_joint_indices = []
-    joint_id_to_indices = joint_ids_to_indices(model)
-    for joint in urdf.joints:
-        if joint.mimic is not None:
-            mimicked_joint_index = joint_id_to_indices[
-                model.getJointId(joint.mimic.joint)
-            ]
-            mimic_joint_index = joint_id_to_indices[model.getJointId(joint.name)]
-            mimic_joint_ids.append(model.getJointId(joint.name))
-            assert (
-                len(mimic_joint_index) == 1
-            ), f"Only single joint mimic supported {mimic_joint_index}"
-            assert (
-                len(mimicked_joint_index) == 1
-            ), f"Only single mimicked joint is supported {mimicked_joint_index}"
-            mimicked_joint_indices.append(mimicked_joint_index[0])
-            mimic_joint_indices.append(mimic_joint_index[0])
-            mimic_joint_multipliers.append(joint.mimic.multiplier or 1.0)
-            mimic_joint_offsets.append(joint.mimic.offset or 0.0)
-    return (
-        np.asarray(mimic_joint_ids),
-        np.asarray(mimic_joint_indices),
-        np.asarray(mimic_joint_multipliers),
-        np.asarray(mimic_joint_offsets),
-        np.asarray(mimicked_joint_indices),
-    )
-
-
-@contextlib.contextmanager
-def filter_urdf_parser_stderr():
-    """A context manager that filters stderr for urdf_parser_py's annoying errors."""
-    filters = [r"Unknown tag", r"Unknown attribute"]
-    original_stderr = sys.stderr
-    string_io = io.StringIO()
-
-    class FilteredStderr:
-        def write(self, message):
-            if not any(re.search(pattern, message) for pattern in filters):
-                original_stderr.write(message)
-            string_io.write(message)
-
-        def flush(self):
-            original_stderr.flush()
-
-    sys.stderr = FilteredStderr()
-    try:
-        yield string_io
-    finally:
-        sys.stderr = original_stderr
-
-
 def get_robot_description_path(robot_description: str) -> Path:
     """Get the robot description path.
 
@@ -241,6 +159,7 @@ def load_models_from_xacro(
         pinocchio.buildModelsFromUrdf(
             parsed_file_path,
             package_dirs=[robot_description_path.parent.resolve()],
+            mimic=True,
         ),
     )
 
