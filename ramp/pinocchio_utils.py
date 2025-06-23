@@ -1,12 +1,9 @@
 """Utility functions for working with Pinocchio models."""
 
-import contextlib
 import importlib
-import io
 import logging
 import os
 import re
-import sys
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
@@ -14,7 +11,6 @@ import numpy as np
 import pinocchio
 import pinocchio.visualize
 import xacrodoc
-from urdf_parser_py import urdf as urdf_parser
 from xacrodoc import XacroDoc
 
 from ramp.constants import (
@@ -22,7 +18,6 @@ from ramp.constants import (
     PINOCCHIO_PLANAR_JOINT,
     PINOCCHIO_UNBOUNDED_JOINT,
     ROBOT_DESCRIPTION_PREFIX,
-    PINOCCHIO_MIMIC_JOINT,
 )
 from ramp.exceptions import (
     RobotDescriptionNotFoundError,
@@ -101,59 +96,6 @@ def joint_ids_to_velocity_indices(model: pinocchio.Model) -> dict[int, int]:
     for joint in model.joints:
         joint_id_to_indices[joint.id] = joint.idx_v
     return joint_id_to_indices
-
-
-def load_mimic_joints(
-    robot_description: Path,
-    model: pinocchio.Model,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
-    """Get the mimic joints indices, multipliers, offsets and mimicked joint indices.
-
-    Args:
-        robot_description: The robot description file path
-        model: The pinocchio model
-
-    Returns:
-        The mimic joint indices, multipliers, offsets and mimicked joint indices.
-    """
-    if robot_description.suffix != ".urdf":
-        return (
-            np.asarray([]),
-            np.asarray([]),
-            np.asarray([]),
-            np.asarray([]),
-            np.asarray([]),
-        )
-    mimic_joint_ids = []
-    mimic_joint_indices = []
-    mimic_joint_multipliers = []
-    mimic_joint_offsets = []
-    mimicked_joint_indices = []
-    joint_id_to_indices = joint_ids_to_indices(model)
-    for mimic_joint_id, mimicked_joint_id in zip(
-        model.mimicking_joints, model.mimicked_joints, strict=True
-    ):
-        print(f"Mimic joint {model.joints[mimic_joint_id]}")
-        print(f"Mimicked joint {model.joints[mimicked_joint_id]}")
-        print(f"Mimic joint {mimic_joint_id} mimics {mimicked_joint_id}")
-        mimic_joint_ids.append(mimic_joint_id)
-        mimicked_joint_index = joint_id_to_indices[mimicked_joint_id]
-        assert (
-            len(mimicked_joint_index) == 1
-        ), f"Only single mimicked joint is supported {mimicked_joint_id}"
-        mimic_joint_indices.append(joint_id_to_indices[mimic_joint_id])
-        mimicked_joint_indices.append(joint_id_to_indices[mimicked_joint_id])
-        joint = model.joints[mimic_joint_id]
-        assert joint.shortname() == PINOCCHIO_MIMIC_JOINT
-        mimic_joint_multipliers.append(joint.extract().scaling)
-        mimic_joint_offsets.append(joint.extract().offset)
-    return (
-        np.asarray(mimic_joint_ids),
-        np.asarray(mimic_joint_indices),
-        np.asarray(mimic_joint_multipliers),
-        np.asarray(mimic_joint_offsets),
-        np.asarray(mimicked_joint_indices),
-    )
 
 
 def get_robot_description_path(robot_description: str) -> Path:

@@ -20,7 +20,6 @@ from ramp.pinocchio_utils import (
 from ramp.robot_model import (
     RobotModel,
     apply_pinocchio_continuous_joints,
-    apply_pinocchio_mimic_joints,
     as_pinocchio_qpos,
     get_converted_qpos,
 )
@@ -98,7 +97,6 @@ class RobotState:
             indices,
         ), f"Expected {len(indices)} joint positions, got {len(value)}"
         self.qpos[indices] = value
-        apply_pinocchio_mimic_joints(self.robot_model, self.qpos)
         apply_pinocchio_continuous_joints(self.robot_model, self.qpos)
 
     def group_qpos(self, group_name: str) -> np.ndarray:
@@ -115,7 +113,6 @@ class RobotState:
             )
         ), f"Expected {len(self.robot_model[group_name].joints)} joint positions, got {len(value)}"
         self.qpos[self.robot_model[group_name].joint_position_indices] = value
-        apply_pinocchio_mimic_joints(self.robot_model, self.qpos)
         apply_pinocchio_continuous_joints(self.robot_model, self.qpos)
 
     def actuated_qpos(self) -> np.ndarray:
@@ -136,7 +133,6 @@ class RobotState:
                 start_index : start_index + len(group.joint_position_indices)
             ]
             start_index += len(group.joint_position_indices)
-        apply_pinocchio_mimic_joints(self.robot_model, self.qpos)
         apply_pinocchio_continuous_joints(self.robot_model, self.qpos)
 
     def randomize(self, group_name: str | None = None):
