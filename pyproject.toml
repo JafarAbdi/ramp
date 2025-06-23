@@ -183,6 +183,7 @@ robot_descriptions = ">=1.12.0,<2"
 # ompl = "==1.6.0"
 trac_ik = { path = "external/trac_ik/trac_ik_lib" }
 mujoco_simulator_msgs = { path = "external/mujoco_simulator_msgs" }
+ipympl = "*"
 
 [tool.pixi.target.linux.dependencies]
 pinocchio = ">=3.7.0,<3.8.0"
@@ -195,6 +196,8 @@ kortex_description = { version = ">=0.2.2", channel = "https://repo.prefix.dev/r
 
 [tool.pixi.target.linux.pypi-dependencies]
 ompl = { url = "https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.8.0-cp311-cp311-manylinux_2_28_x86_64.whl" }
+ipywidgets = ">=8.1.7,<9"
+jupyterlab-widgets = "*"
 
 [tool.pixi.target.osx-arm64.pypi-dependencies]
 ompl = { url = "https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.8.0-cp311-cp311-macosx_15_0_arm64.whl" }

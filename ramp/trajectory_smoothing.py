@@ -16,7 +16,7 @@ def generate_time_optimal_trajectory_from_waypoints(
     max_velocity: list[float],
     max_acceleration: list[float],
     resample_dt=0.1,
-) -> list[tuple[list[float], float]] | None:
+) -> list[tuple[list[float], list[float], float]] | None:
     """Parameterize the trajectory using Time Optimal Trajectory Generation http://www.golems.org/node/1570.
 
     Args:
@@ -46,7 +46,9 @@ def generate_time_optimal_trajectory_from_waypoints(
     duration = trajectory.getDuration()
     parameterized_trajectory = []
     for t in np.append(np.arange(0.0, duration, resample_dt), duration):
-        parameterized_trajectory.append((trajectory.getPosition(t), t))
+        position = trajectory.getPosition(t)
+        velocity = trajectory.getVelocity(t)
+        parameterized_trajectory.append((position, velocity, t))
     return parameterized_trajectory
 
 
@@ -87,7 +89,7 @@ def generate_time_optimal_trajectory(
     )
 
     trajectory = []
-    for trajectory_point, t in parameterized_trajectory:
+    for trajectory_point, _, t in parameterized_trajectory:
         rs = waypoints[0].clone()
         rs.set_group_qpos(group_name, trajectory_point)
         trajectory.append((rs, t))

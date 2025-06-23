@@ -7,6 +7,8 @@ import time
 
 import zmq
 
+from ramp.trajectory_smoothing import generate_time_optimal_trajectory_from_waypoints
+
 
 class ZMQPublisher:
     def __init__(self, zmq_url):
@@ -89,14 +91,15 @@ path = ta.SplineInterpolator([0, 0.1, 1.0], waypts)
 
 ################################################################################
 # Setup the velocity and acceleration
-vlim = np.array([[-3, 3]])
-alim = np.array([[-4, 4]])
+max_velocity = 3.0
+max_acceleration = 4.0
+vlim = np.array([[-max_velocity, max_velocity]])
+alim = np.array([[-max_acceleration, max_acceleration]])
 pc_vel = constraint.JointVelocityConstraint(vlim)
 pc_acc = constraint.JointAccelerationConstraint(
     alim,
     discretization_scheme=constraint.DiscretizationType.Interpolation,
 )
-
 
 ################################################################################
 # Setup the problem instance and solve it.
@@ -107,7 +110,7 @@ jnt_traj = instance.compute_trajectory(0, 0)
 zmq_publisher = ZMQPublisher("tcp://*:5555")
 # We can now visualize the result
 duration = jnt_traj.duration
-print(f"Found optimal trajectory with duration {duration:f} sec")
+print(f"Found optimal trajectory using TOPP-RA with duration {duration:f} sec")
 ts = np.linspace(0, duration, 100)
 for t in ts:
     qs = jnt_traj.eval(t)
@@ -115,9 +118,29 @@ for t in ts:
     qdds = jnt_traj.evaldd(t)
     zmq_publisher.publish(
         {
-            "position": qs.item(),
-            "velocity": qds.item(),
-            "acceleration": qdds.item(),
+            "toppra/position": qs.item(),
+            "toppra/velocity": qds.item(),
+            "toppra/acceleration": qdds.item(),
         },
         timestamp=t.item(),
+    )
+
+start_time = time.monotonic()
+trajectory, duration = generate_time_optimal_trajectory_from_waypoints(
+    waypts,
+    [max_velocity],
+    [max_acceleration],
+    return_velocity=True,
+)
+print(
+    f"Time taken to generate TOTG trajectory: {time.monotonic() - start_time:.4f} sec",
+)
+print(f"Found time-optimal trajectory using TOTG with duration {duration:.2f} sec")
+for position, velocity, t in trajectory:
+    zmq_publisher.publish(
+        {
+            "totg/position": position.item(),
+            "totg/velocity": velocity.item(),
+        },
+        timestamp=t,
     )

@@ -65,8 +65,8 @@ repos:
         entry: taplo format
         language: system
         types: [toml]
-  # - repo: https://github.com/fastai/nbdev
-  #   rev: 2.2.10
-  #   hooks:
-  #   - id: nbdev_clean
-  #   - id: nbdev_export
+  - repo: https://github.com/fastai/nbdev
+    rev: 2.4.2
+    hooks:
+      - id: nbdev_clean
+      # - id: nbdev_export
