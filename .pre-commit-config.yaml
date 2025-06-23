@@ -65,8 +65,10 @@ repos:
         entry: taplo format
         language: system
         types: [toml]
-  - repo: https://github.com/fastai/nbdev
-    rev: 2.4.2
+  - repo: https://github.com/srstevenson/nb-clean
+    rev: 4.0.1
     hooks:
-      - id: nbdev_clean
-      # - id: nbdev_export
+      - id: nb-clean
+        args:
+          - --remove-empty-cells
+          - --
