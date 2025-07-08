@@ -15,18 +15,20 @@ dependencies = [
   "pin-pink",
   "python-dateutil",
   "urdf-parser-py",
-  "xacrodoc==0.4.1",
+  "xacrodoc>=0.4.1",
   "meshcat-shapes>=0.3.0,<0.4",
-  # mujoco_interface dependencies
-  "mujoco>=3.2.7",
-  "eclipse-zenoh>=1.1.0,<2",
   "transforms3d>=0.4.2,<0.5",
   "loop-rate-limiters",
   "rich",
   "numpy",
-  "scipy",
-
+  "pin>=3.7.0,<3.8.0",
+  "ompl @ https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.8.0-cp311-cp311-manylinux_2_28_x86_64.whl",
+  "robot_descriptions",
 ]
+
+[project.optional-dependencies]
+examples = ["scipy"]
+mujoco = ["mujoco>=3.2.7", "eclipse-zenoh>=1.1.0,<2"]
 
 [project.urls]
 repository = "https://github.com/JafarAbdi/ramp"
@@ -178,14 +180,12 @@ toml = ">=0.10.2,<0.11"
 jupyterlab = ">=4.2.4,<4.3"
 sympy = ">=1.13.2,<1.14"
 rich = ">=13.7.1,<14"
-robot_descriptions = ">=1.12.0,<2"
 # TODO: Use conda for OMPL
 # ompl = "==1.6.0"
 trac_ik = { path = "external/trac_ik/trac_ik_lib" }
 mujoco_simulator_msgs = { path = "external/mujoco_simulator_msgs" }
 
 [tool.pixi.target.linux.dependencies]
-pinocchio = ">=3.7.0,<3.8.0"
 realsense2_description = { version = ">=4.54.1", channel = "https://repo.prefix.dev/ramp" }
 ur_description = { version = ">=2.1.4", channel = "https://repo.prefix.dev/ramp" }
 ur_robot_driver = { version = ">=2.2.11", channel = "https://repo.prefix.dev/ramp" }
