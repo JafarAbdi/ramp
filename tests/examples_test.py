@@ -9,9 +9,6 @@ EXAMPLES = (FILE_PATH / ".." / "examples").glob("*.py")
 @pytest.mark.parametrize("example", EXAMPLES)
 def test_example(example: pathlib.Path):
     if example.name in [
-        "mj_ik.py",
-        "mj_interactive.py",
-        "interactive_ik.py",
         "so_arm100_motion_planning.py",
     ]:
         pytest.skip(f"{example} is not ported example")
