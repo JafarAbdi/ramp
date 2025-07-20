@@ -1,7 +1,7 @@
 [robot]
 base_link = "panda_link0"
 description = "robot-descriptions::panda_description"
-disable_collisions = "../robots/fr3_robotiq/fr3.srdf.xacro"
+disable_collisions = "../robots/fr3/fr3.srdf.xacro"
 
 [group.arm]
 joints = [

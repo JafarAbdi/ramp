@@ -1,6 +1,6 @@
 [robot]
 base_link = "world"
-description = "ur.urdf.xacro"
+description = "robot-descriptions::ur5_description"
 disable_collisions = "ur.srdf.xacro"
 
 [group.arm]
@@ -12,11 +12,8 @@ joints = [
   "wrist_2_joint",
   "wrist_3_joint",
 ]
-tcp_link_name = "tcp_link"
+tcp_link_name = "tool0"
 named_states = { home = [0.0, 0.0, 0.0, 0.0, 0.0, 0.0] }
-
-[group.gripper]
-joints = ["finger_joint"]
 
 # URDF doesn't provide acceleration limits
 [acceleration_limits]
@@ -26,5 +23,3 @@ elbow_joint = 1.0
 wrist_1_joint = 1.0
 wrist_2_joint = 1.0
 wrist_3_joint = 1.0
-# I couldn't find the value for finger_joint in the official specifications
-finger_joint = 1.0

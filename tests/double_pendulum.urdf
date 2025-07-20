@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot name="2dof_planar">
+  <link name="base_link"/>
+  <link name="link1"/>
+  <link name="link2"/>
+  <link name="link3"/>
+  <joint name="joint1" type="continuous">
+    <origin xyz="0 0 0.035" rpy="0 0 0"/>
+    <parent link="base_link"/>
+    <child link="link1"/>
+    <axis xyz="1 0 0"/>
+  </joint>
+  <joint name="joint2" type="continuous">
+    <origin xyz="0.023 0 0.1" rpy="0 0 0"/>
+    <parent link="link1"/>
+    <child link="link2"/>
+    <axis xyz="1 0 0"/>
+  </joint>
+  <joint name="joint3" type="revolute">
+    <parent link="link2"/>
+    <child link="link3"/>
+    <origin xyz="0 0 0.1" rpy="0 0 0"/>
+    <axis xyz="0 -1 0"/>
+    <mimic joint="joint2" multiplier="-0.5"/>
+    <limit effort="1" lower="-3.14" upper="3.14" velocity="1"/>
+  </joint>
+</robot>

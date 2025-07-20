@@ -3,12 +3,10 @@
 import sys
 import pathlib
 
-import numpy as np
-import pinocchio as pin
 
 from ramp import load_robot_model, RobotState, MotionPlanner, Visualizer
 
-robot_model = load_robot_model(pathlib.Path(f"robots/unitree_h1/configs.toml"))
+robot_model = load_robot_model(pathlib.Path("robots/unitree_h1/configs.toml"))
 
 LEFT_GROUP_NAME = "left_arm"
 RIGHT_GROUP_NAME = "right_arm"

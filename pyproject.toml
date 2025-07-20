@@ -1,232 +1,46 @@
-[build-system]
-requires = ["setuptools", "setuptools-scm", "wheel"]
-
-[tool.setuptools_scm]
-version_scheme = "post-release"
-
 [project]
 name = "ramp"
+version = "0.1.0"
 description = "Robot-Agnostic Motion Planning Library"
-dynamic = ["version"]
-classifiers = ["Programming Language :: Python :: 3.11"]
-requires-python = "==3.11"
+readme = "README.md"
+authors = [{ name = "JafarAbdi", email = "jafar.uruc@gmail.com" }]
+requires-python = ">=3.11"
 dependencies = [
-  "meshcat",
-  "pin-pink",
-  "python-dateutil",
-  "urdf-parser-py",
-  "xacrodoc==0.4.1",
-  "meshcat-shapes>=0.3.0,<0.4",
-  # mujoco_interface dependencies
-  "mujoco>=3.2.7",
-  "eclipse-zenoh>=1.1.0,<2",
-  "transforms3d>=0.4.2,<0.5",
-  "loop-rate-limiters",
-  "rich",
-  "numpy",
-  "scipy",
-
+  "loop-rate-limiters>=1.1.2",
+  "meshcat>=0.3.2",
+  "meshcat-shapes>=1.0.0",
+  "numpy>=2.0",
+  "pin-pink>=3.3.0",
+  "rich>=14.0.0",
+  "time_optimal_trajectory_generation_py @ git+https://github.com/JafarAbdi/time_optimal_trajectory_generation_py",
+  "urdf-parser-py>=0.0.4",
+  "xacrodoc>=1.1.2",
+  "toml>=0.10.2",
+  "pin>=3.7.0",
+  # "ompl>=1.7.0", This is segfaulting
+  "qpsolvers[open-source-solvers]>=4.8.0",
+  "ompl",
+  "viser>=1.0.0",
 ]
-
-[project.urls]
-repository = "https://github.com/JafarAbdi/ramp"
-
-[tool.setuptools.packages.find]
-include = ["ramp"]
 
 [project.scripts]
 model_info = "ramp.model_info:main"
 compute_disable_collisions = "ramp.compute_disable_collisions:main"
 
-[tool.mypy]
-python_version = '3.11'
-no_implicit_optional = true
-check_untyped_defs = true
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
 
-# If you run into `missing library stubs or py.typed marker` errors
-# and no stubs are available for this library, you can add an override
-# to ignore the missing imports.
-# [[tool.mypy.overrides]]
-# module = ["my_module"]
-# ignore_missing_imports = true
-
-[tool.pytest.ini_options]
-testpaths = ["tests"]
-#
-[tool.ruff.lint]
-# Never enforce `E501`.
-extend-select = [
-  # Enabled by default
-  # pyflakes
-  # "F",
-  # pycodestyle
-  # "E",
-  "W",
-  # mccabe
-  "C90",
-  # isort
-  "I",
-  # pep8-naming
-  "N",
-  # pydocstyle
-  "D",
-  # pyupgrade
-  "UP",
-  # flake8-2020
-  "YTT",
-  # flake8-annotations
-  # "ANN",
-  # flake8-bandit
-  "S",
-  # flake8-blind-except
-  "BLE",
-  # flake8-boolean-trap
-  "FBT",
-  # flake8-bugbear
-  "B",
-  # flake8-builtins
-  "A",
-  # flake8-commas
-  "COM",
-  # flake8-comprehensions
-  "C4",
-  # flake8-datetimez
-  "DTZ",
-  # flake-debugger
-  "T10",
-  # flake8-django
-  "DJ",
-  # flake8-errmsg
-  "EM",
-  # flake8-executable
-  "EXE",
-  # lake8-implicit-str-concat
-  "ISC",
-  # lake8-import-conventions
-  "ICN",
-  # flake8-logging-format
-  "G",
-  # flake8-no-pep420
-  "INP",
-  # flake8-pie
-  "PIE",
-  # flake8-print
-  "T20",
-  # flake8-pyi
-  "PYI",
-  # flake8-pytest-style
-  "PT",
-  # flake8-quotes
-  "Q",
-  # flake8-raise
-  "RSE",
-  # flake8-return
-  "RET",
-  # flake8-self
-  "SLF",
-  # flake8-simplify
-  "SIM",
-  # flake8-tidy-imports
-  "TID",
-  # flake8-type-checking
-  # "TCH",
-  # flake8-unused-arguments
-  # "ARG",
-  # flake8-use-pathlib
-  "PTH",
-  # eradicate
-  "ERA",
-  # pandas-vet
-  "PD",
-  # pygrep-hooks
-  "PGH",
-  # Pylint
-  "PLC",
-  "PLE",
-  "PLR",
-  "PLW",
-  # tryceratops
-  "TRY",
-  # NumPy-specific rules
-  "NPY",
-  # Ruff-specific rules
-  "RUF",
+[dependency-groups]
+dev = [
+  "jupyterlab>=4.4.5",
+  "pre-commit>=4.2.0",
+  "pytest>=8.4.1",
+  "robot-descriptions>=1.20.0",
 ]
-# line-length = 88
-ignore = ["E501"]
-# G004: loggins-f-string
-# INP001: implicit-namespace-package
-# PLR2004: magic-value-comparison
-extend-ignore = ["G004", "INP001", "PLR2004", "S101", "PLR0915"]
-exclude = ["examples/*.py", "tests/*.py"]
 
-[tool.ruff]
-target-version = "py310"
-[tool.ruff.lint.pydocstyle]
-convention = "google"
-
-[tool.pixi.project]
-channels = ["conda-forge", "https://repo.prefix.dev/ramp"]
-platforms = ["linux-64", "osx-arm64"]
-preview = ["pixi-build"]
-
-[tool.pixi.dependencies]
-numpy = ">=1.26.3,<1.27"
-time_optimal_trajectory_generation_py = { version = ">=0.0.1,<0.0.2", channel = "https://repo.prefix.dev/ramp" }
-scipy = ">=1.13.0,<1.14"
-toml = ">=0.10.2,<0.11"
-jupyterlab = ">=4.2.4,<4.3"
-sympy = ">=1.13.2,<1.14"
-rich = ">=13.7.1,<14"
-robot_descriptions = ">=1.12.0,<2"
-# TODO: Use conda for OMPL
-# ompl = "==1.6.0"
-trac_ik = { path = "external/trac_ik/trac_ik_lib" }
-mujoco_simulator_msgs = { path = "external/mujoco_simulator_msgs" }
-
-[tool.pixi.target.linux.dependencies]
-pinocchio = ">=3.7.0,<3.8.0"
-realsense2_description = { version = ">=4.54.1", channel = "https://repo.prefix.dev/ramp" }
-ur_description = { version = ">=2.1.4", channel = "https://repo.prefix.dev/ramp" }
-ur_robot_driver = { version = ">=2.2.11", channel = "https://repo.prefix.dev/ramp" }
-franka_description = { version = ">=0.4.0", channel = "https://repo.prefix.dev/ramp" }
-robotiq_description = { version = ">=0.0.2", channel = "https://repo.prefix.dev/ramp" }
-kortex_description = { version = ">=0.2.2", channel = "https://repo.prefix.dev/ramp" }
-
-[tool.pixi.target.linux.pypi-dependencies]
-ompl = { url = "https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.8.0-cp311-cp311-manylinux_2_28_x86_64.whl" }
-
-[tool.pixi.target.osx-arm64.pypi-dependencies]
-ompl = { url = "https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.8.0-cp311-cp311-macosx_15_0_arm64.whl" }
-
-[tool.pixi.pypi-dependencies]
-ramp = { path = ".", editable = true }
-mujoco_simulator_msgs = { path = "external/mujoco_simulator_msgs", editable = true }
-
-[tool.pixi.tasks]
-meshcat = "meshcat-server --open"
-jupyter = "jupyter lab"
-# Needed for trac-ik
-install-mujoco = """
-cd $PIXI_PROJECT_ROOT/.pixi &&
-(
-  test -f "mujoco.tar.gz" || wget https://github.com/google-deepmind/mujoco/releases/download/3.2.7/mujoco-3.2.7-linux-x86_64.tar.gz -O mujoco.tar.gz
-) && (
-  test -f "$CONDA_PREFIX/lib/libmujoco.so" || tar xzf mujoco.tar.gz --strip-components 1 -C $CONDA_PREFIX
-)
-"""
-
-[tool.pixi.feature.test]
-# pytest-repeat makes it easy to repeat a test `pixi run test tests/motion_planner_test.py --count 10`
-dependencies = { pytest = ">=6", pytest-cov = "*", mypy = "*", pytest-repeat = "*" }
-tasks = { test = { cmd = "python3 -m pytest --capture=no", depends-on = [
-  { task = "install-mujoco", environment = "test" },
-] }, test-coverage = "pytest --cov=ramp --cov-report=xml --cov-report=term-missing" }
-
-[tool.pixi.feature.lint]
-dependencies = { pre-commit = "*", prettier = "*", taplo = "*" }
-tasks = { lint = "pre-commit run -a" }
-
-[tool.pixi.environments]
-test = ["test"]
-lint = { features = ["lint"], no-default-feature = true }
+[tool.uv.sources]
+ompl = [
+  { url = "https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.8.0-cp311-cp311-manylinux_2_28_x86_64.whl", marker = "python_version == '3.11'" },
+  { url = "https://github.com/ompl/ompl/releases/download/prerelease/ompl-1.8.0-cp312-cp312-manylinux_2_28_x86_64.whl", marker = "python_version == '3.12'" },
+]

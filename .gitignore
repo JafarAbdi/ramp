@@ -178,3 +178,14 @@ cython_debug/
 jnrh2023/
 robotic_course_pin/
 tutorials/
+
+# Python-generated files
+__pycache__/
+*.py[oc]
+build/
+dist/
+wheels/
+*.egg-info
+
+# Virtual environments
+.venv

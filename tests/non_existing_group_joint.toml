@@ -1,6 +1,6 @@
 [robot]
-base_link = "fr3_link0"
-description = "../robots/fr3_robotiq/fr3.urdf.xacro"
+base_link = "base"
+description = "robot-descriptions::fr3_mj_description"
 
 [group.arm]
 joints = [
@@ -12,7 +12,7 @@ joints = [
   "fr3_joint6",
   "fr3_joint7",
 ]
-tcp_link_name = "tcp_link"
+tcp_link_name = "attachment_site"
 named_states = { home = [0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785] }
 
 [acceleration_limits]
@@ -23,4 +23,3 @@ fr3_joint4 = 3.125
 fr3_joint5 = 3.75
 fr3_joint6 = 5.0
 fr3_joint7 = 5.0
-robotiq_85_left_inner_knuckle_joint = 1.0
