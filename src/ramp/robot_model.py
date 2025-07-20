@@ -12,6 +12,7 @@ import pinocchio.visualize
 import toml
 from rich import pretty
 
+from ramp.constants import ROBOT_DESCRIPTION_PREFIX
 from ramp.exceptions import (
     MissingAccelerationLimitError,
     MissingBaseLinkError,
@@ -260,6 +261,10 @@ def load_robot_model(
     Returns:
         The robot model
     """
+    if str(config_path).startswith(ROBOT_DESCRIPTION_PREFIX):
+        # If the config path starts with the ROBOT_DESCRIPTION_PREFIX, we assume it's a robot description
+        # and load the robot description from the path.
+        config_path = get_robot_description_path(config_path)
     if not config_path.exists():
         msg = f"File does not exist: {config_path}"
         raise FileNotFoundError(msg)

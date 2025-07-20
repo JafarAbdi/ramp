@@ -12,7 +12,7 @@ from ramp.compute_disable_collisions import (
     disable_collision,
     adjacent_collisions,
 )
-from ramp.mujoco_interface import MuJoCoHardwareInterface
+from ramp.visualizer import Visualizer
 from ramp.robot_model import create_geometry_object
 from ramp.trajectory_smoothing import generate_time_optimal_trajectory
 import hppfcl
@@ -23,12 +23,7 @@ FILE_PATH = pathlib.Path(__file__).parent
 group_name = "default"
 
 robot_model = load_robot_model(
-    FILE_PATH
-    / ".."
-    / "external"
-    / "mujoco_menagerie"
-    / "trs_so_arm100"
-    / "so_arm100.xml",
+    "robot-descriptions::so_arm100_mj_description",
     acceleration_limits={
         "Rotation": 10.0,
         "Pitch": 10.0,
@@ -38,8 +33,9 @@ robot_model = load_robot_model(
         "Jaw": 10.0,
     },
 )
+visualizer = Visualizer(robot_model)
 
-mj_interface = MuJoCoHardwareInterface(robot_model)
+start_state = RobotState(robot_model)
 goal_state = RobotState(robot_model)
 goal_state.add_object(
     create_geometry_object(
@@ -50,23 +46,15 @@ goal_state.add_object(
 )
 disable_collision(robot_model, adjacent_collisions(robot_model), verbose=True)
 disable_collision_pair(robot_model, "Base", "floor")
-mj_interface.add_decorative_geometry(
-    "floor", "box", (0.0, 0.0, -0.025), (1.25, 1.25, 0.025)
-)
 
 planner = MotionPlanner(robot_model, group_name)
 for _ in range(100):
     goal_state.randomize()
     if path := planner.plan(
-        mj_interface.read(),
+        start_state,
         goal_state.actuated_qpos(),
-        timeout=5.0,
+        timeout=1.0,
     ):
-        optimized_path = generate_time_optimal_trajectory(
-            robot_model, group_name, path, 0.01
-        )
-        t = 0.0
-        for rs, time_from_start in optimized_path:
-            mj_interface.write(rs)
-            time.sleep(time_from_start - t)
-            t = time_from_start
+        visualizer.robot_trajectory(path)
+        start_state = goal_state.clone()
+        input("Press Enter to continue...")
