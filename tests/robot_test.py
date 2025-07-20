@@ -68,9 +68,7 @@ def test_no_tcp_link():
 
 def test_robot():
     """Test the Robot class."""
-    robot_model = load_robot_model(
-        FILE_PATH / ".." / "robots" / "fr3" / "configs.toml"
-    )
+    robot_model = load_robot_model(FILE_PATH / ".." / "robots" / "fr3" / "configs.toml")
     assert robot_model.base_link == "base"
     group_name = "arm"
     assert robot_model.groups[group_name].tcp_link_name == "attachment_site"
@@ -91,7 +89,6 @@ def test_robot():
     # Test non-existing group joint
     with pytest.raises(MissingJointError):
         robot_model = load_robot_model(FILE_PATH / "non_existing_group_joint.toml")
-
 
 
 def test_robot_descriptions():

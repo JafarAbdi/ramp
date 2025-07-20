@@ -3,10 +3,7 @@ base_link = "base_link"
 description = "double_pendulum.urdf"
 
 [group.arm]
-joints = [
-  "joint1",
-  "joint2",
-]
+joints = ["joint1", "joint2"]
 
 [acceleration_limits]
 joint1 = 1.0

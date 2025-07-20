@@ -26,7 +26,7 @@ jobs:
       - name: Install the project
         run: uv sync --locked --all-extras --dev
       - name: Run pre-commit hooks
-        run: uv run pre-commit run --all-files ---color=always -show-diff-on-failure
+        run: uv run pre-commit run --all-files --color=always --show-diff-on-failure
 
   pytest:
     runs-on: ubuntu-latest

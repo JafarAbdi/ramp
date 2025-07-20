@@ -4,7 +4,6 @@ import contextlib
 import importlib
 import io
 import logging
-import os
 import re
 import sys
 from pathlib import Path
@@ -13,7 +12,6 @@ from tempfile import NamedTemporaryFile
 import numpy as np
 import pinocchio
 import pinocchio.visualize
-import xacrodoc
 from urdf_parser_py import urdf as urdf_parser
 from xacrodoc import XacroDoc
 

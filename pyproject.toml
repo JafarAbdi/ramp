@@ -24,15 +24,20 @@ dependencies = [
 ]
 
 [project.scripts]
-model_info                 = "ramp.model_info:main"
+model_info = "ramp.model_info:main"
 compute_disable_collisions = "ramp.compute_disable_collisions:main"
 
 [build-system]
-requires      = ["setuptools>=61"]
+requires = ["setuptools>=61"]
 build-backend = "setuptools.build_meta"
 
 [dependency-groups]
-dev = ["jupyterlab>=4.4.5", "pre-commit>=4.2.0", "pytest>=8.4.1", "robot-descriptions>=1.20.0"]
+dev = [
+  "jupyterlab>=4.4.5",
+  "pre-commit>=4.2.0",
+  "pytest>=8.4.1",
+  "robot-descriptions>=1.20.0",
+]
 
 [tool.uv.sources]
 ompl = [

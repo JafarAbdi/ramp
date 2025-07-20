@@ -55,4 +55,3 @@ def test_robot_state():
     assert np.allclose(
         rs2.qpos[robot_model.mimic_joint_indices], [-0.05]
     )  # Mimic joint updated
-

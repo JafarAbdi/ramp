@@ -5,8 +5,8 @@ import pathlib
 import sys
 
 from ramp import Visualizer, load_robot_model, setup_logging
-from ramp.pinocchio_utils import get_robot_description_path
 from ramp.constants import ROBOT_DESCRIPTION_PREFIX
+from ramp.pinocchio_utils import get_robot_description_path
 
 setup_logging()
 
