@@ -1,9 +1,8 @@
 import pathlib
 
 import numpy as np
-import pinocchio as pin
 
-from ramp import load_robot_model, RobotState, MotionPlanner
+from ramp import load_robot_model, RobotState
 
 FILE_PATH = pathlib.Path(__file__).parent
 
@@ -39,19 +38,21 @@ def test_robot_state():
     )
 
     # Contains both continuous and mimic joints
-    robot_model = load_robot_model(
-        FILE_PATH / ".." / "robots" / "kinova" / "configs.toml"
-    )
-    rs = RobotState.from_named_state(robot_model, "arm", "home")
-    assert np.allclose(rs.actuated_qpos(), [0.0, 0.0, -3.14, -1.57, 0.0, 0.0, 1.57])
-    rs.set_group_qpos("arm", [0.0, 0.1, 0.5, -2.0, 0.0, 0.0, 0.4])
-    assert np.allclose(rs.actuated_qpos(), [0.0, 0.1, 0.5, -2.0, 0.0, 0.0, 0.4])
+    robot_model = load_robot_model(FILE_PATH / "double_pendulum.toml")
+    rs = RobotState(robot_model)
+    assert np.allclose(rs.actuated_qpos(), [0.0, 0.0])
+    rs.set_group_qpos("arm", [0.2, 0.1])
+    assert np.allclose(rs.actuated_qpos(), [0.2, 0.1])
     assert np.allclose(
         rs.qpos,
         RobotState.from_actuated_qpos(robot_model, rs.actuated_qpos()).qpos,
     )
     rs2 = rs.clone()
-    rs2.set_group_qpos("arm", [0.5, 0.0, -3.14, -1.57, 0.0, 0.0, 1.57])
+    rs2.set_group_qpos("arm", [0.5, 0.1])
     assert not np.allclose(rs2.actuated_qpos(), rs.actuated_qpos())
     # Test continuous joint being updated correctly
     assert np.allclose(rs2.actuated_qpos(), rs2.group_qpos("arm"))
+    assert np.allclose(
+        rs2.qpos[robot_model.mimic_joint_indices], [-0.05]
+    )  # Mimic joint updated
+

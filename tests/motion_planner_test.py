@@ -2,19 +2,11 @@ import pathlib
 
 import numpy as np
 import pinocchio
-import pytest
 
 import hppfcl
 from ramp import load_robot_model, RobotState, MotionPlanner, setup_logging
 from ramp.robot_model import create_geometry_object
-from ramp.ik_solver import IKSolver
 from ramp.trajectory_smoothing import generate_time_optimal_trajectory
-from ramp.exceptions import (
-    MissingBaseLinkError,
-    MissingAccelerationLimitError,
-    MissingJointError,
-    RobotDescriptionNotFoundError,
-)
 
 FILE_PATH = pathlib.Path(__file__).parent
 GROUP_NAME = "arm"

@@ -7,7 +7,6 @@ import pinocchio
 import pytest
 
 from ramp import load_robot_model, RobotState
-from ramp.ik_solver import IKSolver
 from ramp.exceptions import (
     MissingBaseLinkError,
     MissingAccelerationLimitError,
@@ -28,13 +27,7 @@ def test_configs():
     )
     robot_model = load_robot_model(FILE_PATH / ".." / "robots" / "rrr_mj" / "rrr.xml")
     robot_model = load_robot_model(
-        FILE_PATH / ".." / "robots" / "ur5e" / "ur.urdf.xacro"
-    )
-    robot_model = load_robot_model(
-        FILE_PATH / ".." / "robots" / "kinova" / "kinova.urdf.xacro"
-    )
-    robot_model = load_robot_model(
-        FILE_PATH / ".." / "robots" / "fr3_robotiq" / "fr3.urdf.xacro"
+        FILE_PATH / ".." / "robots" / "ur5e" / "configs.toml"
     )
     robot_model = load_robot_model(
         FILE_PATH / ".." / "robots" / "planar_rrr" / "robot.urdf.xacro"
@@ -49,15 +42,6 @@ def test_rrr():
     assert robot_model[group_name].tcp_link_name == "end_effector"
     assert robot_model[group_name].joints == ["joint1", "joint2", "joint3"]
     target_pose = [0.4, 0.0, 0.2, 0.0, 1.0, 0.0, 0.0]
-    # Using IK
-    ik_solver = IKSolver(
-        robot_model.model_filename,
-        robot_model.base_link,
-        robot_model[group_name].tcp_link_name,
-    )
-    initial_qpos = robot_model[group_name].named_states["home"]
-    target_joint_positions = ik_solver.solve(target_pose, initial_qpos)
-    assert target_joint_positions is not None
 
     robot_state = RobotState.from_named_state(robot_model, group_name, "home")
     # Using differential-ik
@@ -85,11 +69,11 @@ def test_no_tcp_link():
 def test_robot():
     """Test the Robot class."""
     robot_model = load_robot_model(
-        FILE_PATH / ".." / "robots" / "fr3_robotiq" / "configs.toml"
+        FILE_PATH / ".." / "robots" / "fr3" / "configs.toml"
     )
-    assert robot_model.base_link == "fr3_link0"
+    assert robot_model.base_link == "base"
     group_name = "arm"
-    assert robot_model.groups[group_name].tcp_link_name == "tcp_link"
+    assert robot_model.groups[group_name].tcp_link_name == "attachment_site"
     assert robot_model.groups[group_name].joints == [
         "fr3_joint1",
         "fr3_joint2",
@@ -109,50 +93,6 @@ def test_robot():
         robot_model = load_robot_model(FILE_PATH / "non_existing_group_joint.toml")
 
 
-ROBOTS = ["fr3_robotiq", "kinova", "ur5e"]
-
-
-@pytest.mark.parametrize("robot_name", ROBOTS)
-def test_ik(robot_name):
-    """Test the ik function."""
-    robot_model = load_robot_model(
-        FILE_PATH / ".." / "robots" / robot_name / "configs.toml",
-    )
-    # TODO: Add a loop to check for 100 different poses
-    # Use fk to check if the pose is actually same as the input one
-    group_name = "arm"
-    robot_state = RobotState.from_named_state(robot_model, group_name, "home")
-    assert robot_state.clone().differential_ik(
-        group_name,
-        [0.2, 0.2, 0.2, 1.0, 0.0, 0.0, 0.0],
-    )
-    ik_solver = IKSolver(
-        robot_model.model_filename,
-        robot_model.base_link,
-        robot_model[group_name].tcp_link_name,
-    )
-    target_joint_positions = ik_solver.solve(
-        [0.2, 0.2, 0.2, 1.0, 0.0, 0.0, 0.0],
-        robot_state.actuated_qpos(),
-    )
-    assert target_joint_positions is not None
-
-    # Outside workspace should fail
-    assert not robot_state.clone().differential_ik(
-        group_name,
-        [2.0, 2.0, 2.0, 1.0, 0.0, 0.0, 0.0],
-    )
-    ik_solver = IKSolver(
-        robot_model.model_filename,
-        robot_model.base_link,
-        robot_model[group_name].tcp_link_name,
-    )
-    target_joint_positions = ik_solver.solve(
-        [2.0, 2.0, 2.0, 1.0, 0.0, 0.0, 0.0],
-        robot_state.actuated_qpos(),
-    )
-    assert target_joint_positions is None
-
 
 def test_robot_descriptions():
     """Test using robot-descriptions.py package."""
@@ -162,10 +102,6 @@ def test_robot_descriptions():
         )
     load_robot_model(
         FILE_PATH / "panda_configs.toml",
-    )
-
-    load_robot_model(
-        FILE_PATH / "panda_mj_configs.toml",
     )
 
 

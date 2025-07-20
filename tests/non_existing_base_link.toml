@@ -1,6 +1,6 @@
 [robot]
 base_link = "non_existing_base_link"
-description = "../robots/fr3_robotiq/fr3.urdf.xacro"
+description = "robot-descriptions::panda_description"
 
 [group.arm]
 joints = [
@@ -12,8 +12,7 @@ joints = [
   "panda_joint6",
   "panda_joint7",
 ]
-tcp_link_name = "tcp_link"
-gripper = { actuated_joint = "finger_joint", open = 0.0, close = 0.695 }
+tcp_link_name = "panda_hand_tcp"
 
 [named_states]
 home = [

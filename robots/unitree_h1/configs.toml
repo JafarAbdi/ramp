@@ -1,6 +1,6 @@
 [robot]
 base_link = "universe"
-description = "../../external/mujoco_menagerie/unitree_h1/h1.xml"
+description = "robot-descriptions::h1_mj_description"
 disable_collisions = "h1.srdf.xacro"
 
 [group.left_arm]

@@ -1,24 +1,25 @@
 [robot]
-base_link = "fr3_link0"
-description = "../robots/fr3_robotiq/fr3.urdf.xacro"
-disable_collisions = "../robots/fr3_robotiq/fr3.srdf.xacro"
+base_link = "panda_link0"
+description = "robot-descriptions::panda_description"
+disable_collisions = "../robots/panda/panda.srdf.xacro"
+mappings = { prefix = "panda_" }
 
 [group.arm]
 joints = [
-  "fr3_joint1",
-  "fr3_joint2",
-  "fr3_joint3",
-  "fr3_joint4",
-  "fr3_joint5",
-  "fr3_joint6",
-  "fr3_joint7",
+  "panda_joint1",
+  "panda_joint2",
+  "panda_joint3",
+  "panda_joint4",
+  "panda_joint5",
+  "panda_joint6",
+  "panda_joint7",
 ]
-tcp_link_name = "tcp_link"
+tcp_link_name = "panda_hand_tcp"
 
 named_states = { home = [0.0, -0.785, 0.0, -2.356, 0.0, 1.571, 0.785] }
 
 [group.gripper]
-joints = ["robotiq_85_left_inner_knuckle_joint"]
+joints = ["panda_finger_joint1", "panda_finger_joint2"]
 
 # URDF doesn't provide acceleration limits
 # https://frankaemika.github.io/docs/control_parameters.html#limits-for-panda
@@ -32,4 +33,4 @@ fr3_joint5 = 3.75
 fr3_joint6 = 5.0
 fr3_joint7 = 5.0
 # I couldn't find the value for finger_joint in the official specifications
-robotiq_85_left_inner_knuckle_joint = 1.0
+panda_finger_joint1 = 1.0

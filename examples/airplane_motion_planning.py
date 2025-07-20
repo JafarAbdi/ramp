@@ -8,7 +8,6 @@ import pinocchio as pin
 import hppfcl
 
 from ramp import load_robot_model, RobotState, MotionPlanner, Visualizer, setup_logging
-from ramp.robot_model import create_geometry_object
 
 setup_logging()
 

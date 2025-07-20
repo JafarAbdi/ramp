@@ -1,9 +1,0 @@
-[submodule "external/trac_ik"]
-	path = external/trac_ik
-	url = https://github.com/JafarAbdi/trac_ik.git
-[submodule "external/mujoco_menagerie"]
-	path = external/mujoco_menagerie
-	url = git@github.com:google-deepmind/mujoco_menagerie.git
-[submodule "external/mujoco_simulator_msgs"]
-	path = external/mujoco_simulator_msgs
-	url = https://github.com/JafarAbdi/mujoco_simulator_msgs

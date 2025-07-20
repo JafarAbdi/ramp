@@ -5,6 +5,8 @@ import pathlib
 import sys
 
 from ramp import Visualizer, load_robot_model, setup_logging
+from ramp.pinocchio_utils import get_robot_description_path
+from ramp.constants import ROBOT_DESCRIPTION_PREFIX
 
 setup_logging()
 
@@ -17,7 +19,12 @@ def main():
         LOGGER.error(f"Usage: {sys.argv[0]} <model_filename>")
         sys.exit(1)
 
-    robot_model = load_robot_model(pathlib.Path(sys.argv[1]))
+    robot_description_path = (
+        get_robot_description_path(sys.argv[1])
+        if sys.argv[1].startswith(ROBOT_DESCRIPTION_PREFIX)
+        else pathlib.Path(sys.argv[1])
+    )
+    robot_model = load_robot_model(robot_description_path)
     LOGGER.info(f"Joints: {list(robot_model.model.names)}")
     LOGGER.info(f"Frames: {[frame.name for frame in robot_model.model.frames]}")
 

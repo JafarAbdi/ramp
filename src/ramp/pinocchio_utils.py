@@ -280,18 +280,6 @@ def load_xacro(file_path: Path, mappings: dict | None = None) -> str:
         msg = f"File {file_path} doesn't exist"
         raise FileNotFoundError(msg)
 
-    if (conda_prefix := os.environ.get("CONDA_PREFIX")) is not None:
-        # TODO: Should we automatically add all folders in $CONDA_PREFIX/share/..??
-        xacrodoc.packages.update_package_cache(
-            {
-                "ur_description": f"{conda_prefix}/share/ur_description",
-                "franka_description": f"{conda_prefix}/share/franka_description",
-                "robotiq_description": f"{conda_prefix}/share/robotiq_description",
-                "ur_robot_driver": f"{conda_prefix}/share/ur_robot_driver",
-                "realsense2_description": f"{conda_prefix}/share/realsense2_description",
-                "kortex_description": f"{conda_prefix}/share/kortex_description",
-            },
-        )
     return XacroDoc.from_file(
         file_path,
         subargs=mappings,

@@ -1,7 +1,6 @@
 import pathlib
 from ramp.compute_disable_collisions import (
     adjacent_collisions,
-    default_collisions,
     DisabledReason,
 )
 from ramp import load_robot_model

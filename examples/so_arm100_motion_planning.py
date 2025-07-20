@@ -1,7 +1,6 @@
 """Example of using the MotionPlanner functionality."""
 
 import pathlib
-import sys
 import time
 
 import numpy as np
@@ -12,13 +11,11 @@ from ramp.compute_disable_collisions import (
     disable_collision_pair,
     disable_collision,
     adjacent_collisions,
-    default_collisions,
 )
 from ramp.mujoco_interface import MuJoCoHardwareInterface
 from ramp.robot_model import create_geometry_object
 from ramp.trajectory_smoothing import generate_time_optimal_trajectory
 import hppfcl
-import pinocchio as pin
 
 setup_logging()
 
