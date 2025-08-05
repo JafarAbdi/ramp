@@ -21,6 +21,8 @@ dependencies = [
   "qpsolvers[open-source-solvers]>=4.8.0",
   "ompl",
   "viser>=1.0.0",
+  "matplotlib>=3.10.3",
+  "drake>=1.43.0",
 ]
 
 [project.scripts]
