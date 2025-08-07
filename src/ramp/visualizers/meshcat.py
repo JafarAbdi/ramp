@@ -9,7 +9,7 @@ from ramp.robot_model import RobotModel
 from ramp.robot_state import RobotState
 
 
-class Visualizer:
+class MeshcatVisualizer:
     """Meshcat visualizer for the robot."""
 
     def __init__(self, robot_model: RobotModel) -> None:

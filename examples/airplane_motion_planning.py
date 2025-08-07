@@ -7,7 +7,13 @@ import numpy as np
 import pinocchio as pin
 import hppfcl
 
-from ramp import load_robot_model, RobotState, MotionPlanner, Visualizer, setup_logging
+from ramp import (
+    load_robot_model,
+    RobotState,
+    MotionPlanner,
+    MeshcatVisualizer,
+    setup_logging,
+)
 
 setup_logging()
 
@@ -24,7 +30,7 @@ robot_model = load_robot_model(
     pathlib.Path("robots/floating.urdf"), {"floating_joint": "vana"}
 )
 if visualize:
-    visualizer = Visualizer(robot_model)
+    visualizer = MeshcatVisualizer(robot_model)
 
 start_state = RobotState.from_actuated_qpos(
     robot_model, [0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 1.0]

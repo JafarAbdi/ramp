@@ -12,7 +12,7 @@ from ramp.compute_disable_collisions import (
     disable_collision,
     adjacent_collisions,
 )
-from ramp.visualizer import Visualizer
+from ramp.visualizers import MeshcatVisualizer
 from ramp.robot_model import create_geometry_object
 from ramp.trajectory_smoothing import generate_time_optimal_trajectory
 import hppfcl

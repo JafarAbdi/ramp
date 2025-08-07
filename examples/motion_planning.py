@@ -7,7 +7,13 @@ import numpy as np
 import pinocchio as pin
 import hppfcl
 
-from ramp import load_robot_model, RobotState, MotionPlanner, Visualizer, setup_logging
+from ramp import (
+    load_robot_model,
+    RobotState,
+    MotionPlanner,
+    MeshcatVisualizer,
+    setup_logging,
+)
 from ramp.robot_model import create_geometry_object
 import logging
 
@@ -41,7 +47,7 @@ for robot_path, goal_state in robots:
         input(
             f"Press Enter to continue with robot {robot_path} and a collision object in the scene..."
         )
-        visualizer = Visualizer(robot_model)
+        visualizer = MeshcatVisualizer(robot_model)
 
     start_state = RobotState.from_named_state(robot_model, group_name, "home")
     start_state.add_object(

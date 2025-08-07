@@ -4,7 +4,7 @@ import sys
 import pathlib
 
 
-from ramp import load_robot_model, RobotState, MotionPlanner, Visualizer
+from ramp import load_robot_model, RobotState, MotionPlanner, MeshcatVisualizer
 
 robot_model = load_robot_model(pathlib.Path("robots/unitree_h1/configs.toml"))
 
