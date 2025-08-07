@@ -28,8 +28,8 @@ def test_mimic_joint():
     robot_state = RobotState(robot_model)
     number_of_mimic_joints = 1
     assert (
-        robot_model.mimic_joint_indices.size == 1
-    ), f"Expected 1 mimic joints, found {robot_model.mimic_joint_indices.size}"
+        len(robot_model.mimic_joint_indices) == 1
+    ), f"Expected 1 mimic joints, found {len(robot_model.mimic_joint_indices)}"
     robot_state.set_group_qpos(group_name, [0.0])
     assert np.allclose(
         robot_state.qpos[robot_model.mimic_joint_indices],

@@ -39,7 +39,7 @@ def as_pinocchio_pose(pose):
     )
 
 
-def get_continuous_joint_indices(model: pinocchio.Model) -> np.ndarray:
+def get_continuous_joint_indices(model: pinocchio.Model) -> list[int]:
     """Get the continuous joint indices."""
     # Continuous joints have 2 q, it's represented as cos(theta), sin(theta)
     continuous_joint_indices = []
@@ -51,7 +51,7 @@ def get_continuous_joint_indices(model: pinocchio.Model) -> np.ndarray:
             continuous_joint_indices.append(
                 joint.idx_q + 2,
             )  # theta of the planar joint is continuous
-    return np.asarray(continuous_joint_indices)
+    return continuous_joint_indices
 
 
 def joint_ids_to_name_indices(model: pinocchio.Model) -> dict[int, int]:
@@ -103,7 +103,7 @@ def joint_ids_to_velocity_indices(model: pinocchio.Model) -> dict[int, int]:
 def load_mimic_joints(
     robot_description: Path,
     model: pinocchio.Model,
-) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+) -> tuple[list[int], list[int], list[int], list[int], list[int]]:
     """Get the mimic joints indices, multipliers, offsets and mimicked joint indices.
 
     Args:
@@ -115,11 +115,11 @@ def load_mimic_joints(
     """
     if robot_description.suffix != ".urdf":
         return (
-            np.asarray([]),
-            np.asarray([]),
-            np.asarray([]),
-            np.asarray([]),
-            np.asarray([]),
+            [],
+            [],
+            [],
+            [],
+            [],
         )
     with filter_urdf_parser_stderr():
         urdf = urdf_parser.URDF.from_xml_file(robot_description)
@@ -147,11 +147,11 @@ def load_mimic_joints(
             mimic_joint_multipliers.append(joint.mimic.multiplier or 1.0)
             mimic_joint_offsets.append(joint.mimic.offset or 0.0)
     return (
-        np.asarray(mimic_joint_ids),
-        np.asarray(mimic_joint_indices),
-        np.asarray(mimic_joint_multipliers),
-        np.asarray(mimic_joint_offsets),
-        np.asarray(mimicked_joint_indices),
+        mimic_joint_ids,
+        mimic_joint_indices,
+        mimic_joint_multipliers,
+        mimic_joint_offsets,
+        mimicked_joint_indices,
     )
 
 

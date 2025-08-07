@@ -37,9 +37,9 @@ class GroupModel:
     """A class to represent a group of joints."""
 
     joints: list[str]
-    joint_indices: np.ndarray
-    joint_position_indices: np.ndarray
-    joint_velocity_indices: np.ndarray
+    joint_indices: list[int]
+    joint_position_indices: list[int]
+    joint_velocity_indices: list[int]
     named_states: dict[str, np.ndarray] = field(default_factory=dict)
     tcp_link_name: str | None = None
 
@@ -69,7 +69,7 @@ class RobotModel:
         object.__setattr__(
             self,
             "continuous_joint_indices",
-            get_continuous_joint_indices(self.model),
+            np.asarray(get_continuous_joint_indices(self.model)),
         )
         (
             mimic_joint_ids,
@@ -379,7 +379,7 @@ def from_pinocchio_qpos_continuous(
     q,
 ):
     """Convert pinocchio joint positions to continuous joint positions."""
-    if robot_model.continuous_joint_indices.size == 0:
+    if len(robot_model.continuous_joint_indices) == 0:
         return
     q[robot_model.continuous_joint_indices] = np.arctan2(
         q[robot_model.continuous_joint_indices + 1],
@@ -404,7 +404,7 @@ def get_converted_qpos(robot_model: RobotModel, qpos: np.ndarray) -> np.ndarray:
 
 def apply_pinocchio_continuous_joints(robot_model: RobotModel, q: np.ndarray):
     """Convert continuous joint positions to pinocchio joint positions."""
-    if robot_model.continuous_joint_indices.size == 0:
+    if len(robot_model.continuous_joint_indices) == 0:
         return
     (
         q[robot_model.continuous_joint_indices],
@@ -417,7 +417,7 @@ def apply_pinocchio_continuous_joints(robot_model: RobotModel, q: np.ndarray):
 
 def apply_pinocchio_mimic_joints(robot_model: RobotModel, q: np.ndarray):
     """Apply mimic joints to the joint positions."""
-    if robot_model.mimic_joint_indices.size == 0:
+    if len(robot_model.mimic_joint_indices) == 0:
         return
     q[robot_model.mimic_joint_indices] = (
         q[robot_model.mimicked_joint_indices] * robot_model.mimic_joint_multipliers
