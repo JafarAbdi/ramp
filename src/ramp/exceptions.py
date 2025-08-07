@@ -1,20 +1,12 @@
 """Exceptions for ramp package."""
 
 
-class MissingGroupError(Exception):
-    """Missing group error."""
-
-
 class MissingBaseLinkError(Exception):
     """Missing base link error."""
 
 
 class MissingJointError(Exception):
     """Missing joint error."""
-
-
-class MissingGripperError(Exception):
-    """Missing gripper error."""
 
 
 class RobotDescriptionNotFoundError(Exception):
@@ -44,16 +36,4 @@ class MissingAccelerationLimitError(Exception):
             defined_joint_names: List of defined joint names
         """
         message = f"Acceleration limits only defined for {defined_joint_names} - Missing {set(joint_names) - set(defined_joint_names)}"
-        super().__init__(message)
-
-
-class TcplinkNotDefinedError(Exception):
-    """TCP link not defined error."""
-
-    def __init__(self, message):
-        """Init.
-
-        Args:
-            message: The error message
-        """
         super().__init__(message)
