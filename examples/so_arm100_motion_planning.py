@@ -12,7 +12,7 @@ from ramp.compute_disable_collisions import (
     disable_collision,
     adjacent_collisions,
 )
-from ramp.visualizers import MeshcatVisualizer
+from ramp.visualizers import ViserVisualizer
 from ramp.robot_model import create_geometry_object
 from ramp.trajectory_smoothing import generate_time_optimal_trajectory
 import hppfcl
@@ -33,7 +33,7 @@ robot_model = load_robot_model(
         "Jaw": 10.0,
     },
 )
-visualizer = Visualizer(robot_model)
+visualizer = ViserVisualizer(robot_model)
 
 start_state = RobotState(robot_model)
 goal_state = RobotState(robot_model)
@@ -50,6 +50,8 @@ disable_collision_pair(robot_model, "Base", "floor")
 planner = MotionPlanner(robot_model, group_name)
 for _ in range(100):
     goal_state.randomize()
+    while goal_state.check_collision():
+        goal_state.randomize()
     if path := planner.plan(
         start_state,
         goal_state.actuated_qpos(),
@@ -58,3 +60,4 @@ for _ in range(100):
         visualizer.robot_trajectory(path)
         start_state = goal_state.clone()
         input("Press Enter to continue...")
+        visualizer.robot_state(start_state)

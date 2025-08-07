@@ -14,13 +14,6 @@ from ramp.robot_state import RobotState
 MESH_TYPES = (hppfcl.BVHModelBase, hppfcl.HeightFieldOBBRSS, hppfcl.HeightFieldAABB)
 
 
-def check_data(visualizer: pin.visualize.BaseVisualizer):
-    """Check if the model data changed and rebuild the data if needed."""
-    if not visualizer.model.check(visualizer.data):
-        visualizer.rebuildData()
-        visualizer.loadViewerModel(rootNodeName=visualizer.viewerRootNodeName)
-
-
 class PinocchioViserVisualizer(BaseVisualizer):
     """A Pinocchio visualizer using Viser."""
 
@@ -44,6 +37,18 @@ class PinocchioViserVisualizer(BaseVisualizer):
             visual_data,
         )
         self.static_objects = []
+        self.trajectory_data = self.data.copy()
+
+    def check_data(self):
+        """Check if the model data changed and rebuild the data if needed."""
+        if not self.model.check(self.data) or len(
+            self.visual_model.geometryObjects
+        ) != len(
+            self.visual_data.oMg,
+        ):
+            self.rebuildData()
+            self.trajectory_data = self.data.copy()
+            self.loadViewerModel(rootNodeName=self.viewerRootNodeName)
 
     def initViewer(
         self,
@@ -70,6 +75,13 @@ class PinocchioViserVisualizer(BaseVisualizer):
             )
 
         self.viewer = viewer or viser.ViserServer(host=host, server_port=port)
+        self.trajectory_slider = self.viewer.gui.add_slider(
+            "trajectory_slider", min=0, max=100, step=1, initial_value=0, disabled=True
+        )
+        self.trajectory_slider.on_update(
+            self.display_trajectory_waypoint,
+        )
+        self.trajectory_waypoints = []
         self.frames = {}
 
         if open:
@@ -81,6 +93,10 @@ class PinocchioViserVisualizer(BaseVisualizer):
             # Otherwise, capturing an image too soon after opening a browser window
             # may not register any clients.
             while len(self.viewer.get_clients()) == 0:
+                print(
+                    "Waiting for Viser clients to connect. "
+                    "Please open the browser window.",
+                )
                 time.sleep(0.1)
 
         if loadModel:
@@ -126,6 +142,12 @@ class PinocchioViserVisualizer(BaseVisualizer):
             show_axes=False,
         )
 
+        self.trajectoryRootNodeName = rootNodeName + "/trajectory"
+        self.trajectoryRootFrame = self.viewer.scene.add_frame(
+            self.trajectoryRootNodeName,
+            show_axes=False,
+        )
+
         # Load visual model
         if (visual_color is not None) and (len(visual_color) != 4):
             raise RuntimeError("visual_color must have 4 elements for RGBA.")
@@ -136,7 +158,19 @@ class PinocchioViserVisualizer(BaseVisualizer):
                     self.visualRootNodeName,
                     visual_color,
                 )
+                self.loadViewerGeometryObject(
+                    visual,
+                    self.trajectoryRootNodeName,
+                    visual_color,
+                    alpha=0.5,
+                )
         self.displayVisuals(True)
+        self.updateGeometryPlacements(
+            self.trajectoryRootNodeName,
+            self.trajectory_data,
+            self.visual_model,
+            self.visual_data,
+        )
 
         # Load collision model
         if (collision_color is not None) and (len(collision_color) != 4):
@@ -161,13 +195,41 @@ class PinocchioViserVisualizer(BaseVisualizer):
             )
         self.displayFrames(False)
 
-    def loadViewerGeometryObject(self, geometry_object, prefix="", color=None):
+    def display_trajectory(self, waypoints):
+        """Display a trajectory in the viewer."""
+        self.trajectory_waypoints = waypoints
+        self.trajectory_slider.max = len(waypoints) - 1
+        self.trajectory_slider.disabled = False
+        self.trajectory_slider.value = 0
+
+    def display_trajectory_waypoint(self, event: viser.GuiEvent):
+        """Display a specific waypoint in the trajectory."""
+        if len(self.trajectory_waypoints) == 0:
+            return
+        pin.forwardKinematics(
+            self.model,
+            self.trajectory_data,
+            self.trajectory_waypoints[event.target.value].qpos,
+        )
+        if self.trajectoryRootFrame.visible:
+            self.updateGeometryPlacements(
+                self.trajectoryRootNodeName,
+                self.trajectory_data,
+                self.visual_model,
+                self.visual_data,
+            )
+
+    def loadViewerGeometryObject(
+        self, geometry_object, prefix="", color=None, alpha=None
+    ):
         """Loads a single geometry object."""
         name = geometry_object.name
         if prefix:
             name = prefix + "/" + name
         geom = geometry_object.geometry
-        color_override = color or geometry_object.meshColor
+        color_override = color or geometry_object.meshColor.copy()
+        if alpha is not None:
+            color_override[3] = alpha
 
         if isinstance(geom, hppfcl.Box):
             frame = self.viewer.scene.add_box(
@@ -288,8 +350,12 @@ class PinocchioViserVisualizer(BaseVisualizer):
             geom_model = self.collision_model
             geom_data = self.collision_data
             prefix = self.viewerRootNodeName + "/collision"
+        self.updateGeometryPlacements(prefix, self.data, geom_model, geom_data)
 
-        pin.updateGeometryPlacements(self.model, self.data, geom_model, geom_data)
+    def updateGeometryPlacements(self, prefix, data, geom_model, geom_data):
+        """Update the placements of the geometry objects in the viewer."""
+
+        pin.updateGeometryPlacements(self.model, data, geom_model, geom_data)
         for geom_id, geometry_object in enumerate(geom_model.geometryObjects):
             # Get mesh pose.
             M = geom_data.oMg[geom_id]
@@ -395,7 +461,7 @@ class ViserVisualizer:
         Args:
             robot_state: The robot state to visualize.
         """
-        check_data(self.viser_visualizer)
+        self.viser_visualizer.check_data()
         self.viser_visualizer.display(robot_state.qpos)
 
     def robot_trajectory(self, waypoints: list[RobotState]) -> None:
@@ -404,29 +470,22 @@ class ViserVisualizer:
         Args:
             waypoints: The waypoints to visualize.
         """
-        # > check_data(self.trajectory_visualizer)
-        raise NotImplementedError(
-            "Robot trajectory visualization is not yet implemented in ViserVisualizer.",
-        )
+        self.viser_visualizer.check_data()
+        self.viser_visualizer.display_trajectory(waypoints)
 
-    def frame(self, frame_name, transform):
-        """Visualize a frame.
-
-        Args:
-            frame_name: The frame name to visualize.
-            transform: The (4x4) transform of the frame.
-        """
-        raise NotImplementedError(
-            "Frame visualization is not yet implemented in ViserVisualizer.",
+    def frame(self, frame_name: str, pose: pin.SE3):
+        """Visualize a frame."""
+        q = pin.Quaternion(pose.rotation)
+        self.viser_visualizer.viewer.scene.add_frame(
+            frame_name,
+            position=pose.translation,
+            wxyz=[q.w, q.x, q.y, q.z],
         )
 
     def point(self, point_name, position):
-        """Visualize a point.
-
-        Args:
-            point_name: The point name to visualize.
-            position: The (3,) position of the point.
-        """
-        raise NotImplementedError(
-            "Point visualization is not yet implemented in ViserVisualizer.",
+        """Visualize a point."""
+        self.viser_visualizer.viewer.scene.add_frame(
+            point_name,
+            show_axes=False,
+            position=position,
         )

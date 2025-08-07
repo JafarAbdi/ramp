@@ -11,7 +11,7 @@ from ramp import (
     load_robot_model,
     RobotState,
     MotionPlanner,
-    MeshcatVisualizer,
+    ViserVisualizer,
     setup_logging,
 )
 
@@ -30,7 +30,7 @@ robot_model = load_robot_model(
     pathlib.Path("robots/floating.urdf"), {"floating_joint": "vana"}
 )
 if visualize:
-    visualizer = MeshcatVisualizer(robot_model)
+    visualizer = ViserVisualizer(robot_model)
 
 start_state = RobotState.from_actuated_qpos(
     robot_model, [0.0, 0.1, 0.0, 0.0, 0.0, 0.0, 1.0]

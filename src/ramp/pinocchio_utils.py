@@ -187,6 +187,7 @@ def get_robot_description_path(robot_description: str) -> Path:
     Returns:
         The robot description path
     """
+    robot_description = str(robot_description)
     # Suppress git logs
     logging.getLogger("git").setLevel(logging.INFO)
     if robot_description.startswith(ROBOT_DESCRIPTION_PREFIX):
