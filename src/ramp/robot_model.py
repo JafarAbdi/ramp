@@ -261,6 +261,7 @@ def load_robot_model(
     Returns:
         The robot model
     """
+    config_path = Path(config_path)
     if str(config_path).startswith(ROBOT_DESCRIPTION_PREFIX):
         # If the config path starts with the ROBOT_DESCRIPTION_PREFIX, we assume it's a robot description
         # and load the robot description from the path.

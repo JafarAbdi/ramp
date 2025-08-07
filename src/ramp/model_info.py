@@ -3,7 +3,7 @@
 import logging
 import sys
 
-from ramp import MeshcatVisualizer, load_robot_model, setup_logging
+from ramp import ViserVisualizer, load_robot_model, setup_logging
 
 setup_logging()
 
@@ -20,8 +20,9 @@ def main():
     LOGGER.info(f"Joints: {list(robot_model.model.names)}")
     LOGGER.info(f"Frames: {[frame.name for frame in robot_model.model.frames]}")
 
-    visualizer = MeshcatVisualizer(robot_model)
-    visualizer.meshcat_visualizer.displayCollisions(visibility=True)
+    ViserVisualizer(robot_model)
+    while True:
+        pass
 
 
 if __name__ == "__main__":

@@ -9,7 +9,7 @@ from rich.logging import RichHandler
 from .motion_planner import MotionPlanner
 from .robot_model import RobotModel, load_robot_model
 from .robot_state import RobotState
-from .visualizers import MeshcatVisualizer
+from .visualizers import MeshcatVisualizer, ViserVisualizer
 
 
 def setup_logging():
@@ -33,6 +33,7 @@ except importlib.metadata.PackageNotFoundError as e:  # pragma: no cover
 __all__ = [
     "MotionPlanner",
     "MeshcatVisualizer",
+    "ViserVisualizer",
     "RobotState",
     "RobotModel",
     "load_robot_model",

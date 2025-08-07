@@ -105,7 +105,7 @@ ignore = ["E501"]
 # INP001: implicit-namespace-package
 # PLR2004: magic-value-comparison
 extend-ignore = ["G004", "INP001", "PLR2004", "S101", "PLR0915"]
-exclude = ["examples/*.py", "tests/*.py"]
+exclude = ["examples/*.py", "tests/*.py", "src/ramp/visualizers/viser.py"]
 
 [lint.pydocstyle]
 convention = "google"
