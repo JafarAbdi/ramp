@@ -200,7 +200,7 @@ class PinocchioViserVisualizer(BaseVisualizer):
         self.trajectory_waypoints = waypoints
         self.trajectory_slider.max = len(waypoints) - 1
         self.trajectory_slider.disabled = False
-        self.trajectory_slider.value = 0
+        self.trajectory_slider.value = self.trajectory_slider.max
 
     def display_trajectory_waypoint(self, event: viser.GuiEvent):
         """Display a specific waypoint in the trajectory."""
@@ -280,6 +280,8 @@ class PinocchioViserVisualizer(BaseVisualizer):
     def _add_mesh_from_path(self, name, mesh_path, color):
         """Load a mesh from a file."""
         mesh = trimesh.load(mesh_path)
+        if isinstance(mesh, trimesh.Scene):
+            mesh = mesh.to_mesh()
         if color is None:
             return self.viewer.scene.add_mesh_trimesh(name, mesh)
         else:
@@ -446,14 +448,48 @@ class ViserVisualizer:
             robot_model: Robot model used for visualization.
         """
         self.robot_model = robot_model
+        self._robot_state = RobotState(robot_model)
         self.viser_visualizer = PinocchioViserVisualizer(
             robot_model.model,
             robot_model.collision_model,
             robot_model.visual_model,
         )
         self.viser_visualizer.initViewer(open=True, loadModel=True)
-        self.viser_visualizer.display(pin.neutral(robot_model.model))
+        self.viser_visualizer.display(self._robot_state.qpos)
         self.viser_visualizer.viewer.scene.add_grid("/grid")
+        self.gizmos: dict[str, viser.TransformControlsHandle] = {}
+        for group_name, group in robot_model.groups.items():
+            if group.tcp_link_name is not None:
+                pose = self._robot_state.get_frame_pose(group.tcp_link_name)
+                q = pin.Quaternion(pose.rotation)
+                self.gizmos[group_name] = (
+                    self.viser_visualizer.viewer.scene.add_transform_controls(
+                        group_name,
+                        scale=0.25,
+                        position=pose.translation,
+                        wxyz=np.array([q.w, q.x, q.y, q.z]),
+                    )
+                )
+                self.gizmos[group_name].on_update(self.on_gizmo_update)
+
+    def on_gizmo_update(self, event: viser.TransformControlsEvent) -> None:
+        group_name = event.target.name
+        group = self.robot_model.groups[group_name]
+        self._robot_state.differential_ik(
+            group_name,
+            pin.XYZQUATToSE3(
+                [
+                    event.target.position[0],
+                    event.target.position[1],
+                    event.target.position[2],
+                    event.target.wxyz[1],
+                    event.target.wxyz[2],
+                    event.target.wxyz[3],
+                    event.target.wxyz[0],
+                ],
+            ),
+        )
+        self.viser_visualizer.display_trajectory([self._robot_state])
 
     def robot_state(self, robot_state: RobotState) -> None:
         """Visualize a robot state.
